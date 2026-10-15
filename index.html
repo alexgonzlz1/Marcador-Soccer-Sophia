@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Scoreboard ⚽</title>
+<script>
+  // The homepage opens the family view directly
+  (function(){
+    var u = new URL(location.href);
+    u.pathname = u.pathname.replace(/\/[^\/]*$/, '/ver.html');
+    u.search = ''; u.hash = '';
+    location.replace(u.toString());
+  })();
+</script>
+<meta http-equiv="refresh" content="0;url=ver.html">
+</head>
+<body style="background:#000;color:#fff;font-family:Arial,sans-serif;text-align:center;padding-top:60px">
+  <p>⚽ Opening the scoreboard…</p>
+  <p><a href="ver.html" style="color:#2f80ed">Tap here if it doesn't open on its own</a></p>
+</body>
+</html>

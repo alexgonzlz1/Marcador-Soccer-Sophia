@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<!--
+  ============================================================
+  MARCADOR FAMILIAR · ADMIN
+  Reglas de seguridad para Firebase Realtime Database
+  (pégalas en la consola de Firebase > Realtime Database > pestaña Rules,
+  reemplazando PEGAR_AQUI_EL_UID por el UID de tu usuario administrador
+  en Authentication > Usuarios, y dale a Publicar):
+
+  {
+    "rules": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === \"PEGAR_AQUI_EL_UID\""
+    }
+  }
+
+  En Authentication > Sign-in method activa "Correo electrónico/contraseña"
+  y crea tu usuario administrador. Nadie más podrá escribir en la base.
+  ============================================================
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#141414">
+<title>Marcador · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+/* ===== Configuración de Firebase (proyecto "Score Board") ===== */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVIJhmWGlbSqVU81jKj2Bx-I3ONGPrR_s",
+  authDomain: "score-board-4fadf.firebaseapp.com",
+  databaseURL: "https://score-board-4fadf-default-rtdb.firebaseio.com",
+  projectId: "score-board-4fadf",
+  storageBucket: "score-board-4fadf.firebasestorage.app",
+  messagingSenderId: "581558172027",
+  appId: "1:581558172027:web:4f73ba0208ac1cc7ee65de"
+};
+</script>
+<style>
+  :root{
+    --bg:#141414; --card:#1e1e1e; --card2:#242424;
+    --txt:#ffffff; --muted:#b9b9b9; --line:#333333;
+    --green:#2ecc71; --amber:#f5a623; --red:#e5484d; --blue:#2f80ed;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:'Libre Franklin','Franklin Gothic Medium','Arial Narrow',Arial,sans-serif;}
+  body{display:flex;justify-content:center;min-height:100dvh;}
+  .wrap{width:100%;max-width:480px;min-height:100dvh;padding:14px 14px 40px;
+    display:flex;flex-direction:column;gap:14px;}
+  .pantalla{display:none;flex-direction:column;gap:14px;}
+  .pantalla.activa{display:flex;}
+  h1{font-weight:900;font-size:26px;margin:6px 0 0;text-align:center;letter-spacing:.5px;}
+  h2{font-weight:800;font-size:18px;margin:0;}
+  p.sub{color:var(--muted);font-size:14px;margin:0;text-align:center;line-height:1.5;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;}
+  label{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;}
+  input[type=text],input[type=number],input[type=password],textarea,select{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+    border-radius:12px;padding:14px;font-size:17px;font-family:inherit;margin-top:6px;}
+  input:focus,textarea:focus{outline:2px solid var(--blue);border-color:var(--blue);}
+  textarea{min-height:96px;resize:vertical;line-height:1.5;}
+  .fila{display:flex;gap:10px;}
+  .fila>*{flex:1;}
+  button{font-family:inherit;font-weight:800;border:none;border-radius:14px;cursor:pointer;color:#fff;}
+  button:disabled{opacity:.35;cursor:default;}
+  .btn{width:100%;min-height:60px;font-size:18px;background:var(--blue);padding:14px;}
+  .btn.verde{background:var(--green);color:#0b2b16;}
+  .btn.rojo{background:var(--red);}
+  .btn.gris{background:#3a3a3a;}
+  .btn.ghost{background:transparent;border:2px solid var(--line);}
+  .swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+  .sw{width:44px;height:44px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0;}
+  .sw.sel{border-color:#fff;transform:scale(1.12);}
+  input[type=color].rueda{width:44px;height:44px;border:none;border-radius:50%;padding:0;background:none;cursor:pointer;margin-top:0;}
+  .logo-prev{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#333;display:none;margin-top:8px;}
+  .seg{display:flex;gap:8px;margin-top:6px;}
+  .seg button{flex:1;min-height:52px;font-size:16px;background:#3a3a3a;}
+  .seg button.sel{background:var(--blue);}
+  .pin-input{text-align:center;font-size:34px !important;letter-spacing:14px;font-weight:900;}
+  /* ---- marcador ---- */
+  .marcador{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;}
+  .equipos{display:flex;align-items:stretch;gap:8px;}
+  .eq{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;}
+  .eq .nombre{font-weight:900;font-size:15px;text-align:center;line-height:1.2;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .eq .num{font-weight:900;font-size:84px;line-height:1;border-left:6px solid transparent;
+    padding:0 6px;}
+  .logo{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#333;}
+  .logo-txt{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:26px;color:#fff;}
+  .vs{align-self:center;font-weight:900;color:var(--muted);font-size:20px;}
+  .btn-gol{width:100%;min-height:76px;font-size:21px;font-weight:900;margin-top:6px;}
+  .corr{display:flex;gap:8px;width:100%;}
+  .corr button{flex:1;min-height:52px;font-size:24px;background:#3a3a3a;}
+  .reloj-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;
+    display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .reloj{font-weight:900;font-size:64px;letter-spacing:2px;font-variant-numeric:tabular-nums;cursor:pointer;}
+  .periodo{font-weight:900;font-size:22px;background:#3a3a3a;border-radius:999px;
+    padding:10px 28px;letter-spacing:2px;}
+  .reloj-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+  .reloj-btns button{min-height:60px;font-size:17px;background:#3a3a3a;}
+  .reloj-btns button.principal{background:var(--green);color:#0b2b16;}
+  .btn-deshacer{width:100%;min-height:60px;font-size:18px;background:#4a3b12;color:#ffd970;}
+  /* ---- modal gol ---- */
+  .modal-fondo{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;
+    align-items:flex-end;justify-content:center;z-index:50;}
+  .modal-fondo.abierto{display:flex;}
+  .modal{background:#1e1e1e;width:100%;max-width:480px;border-radius:22px 22px 0 0;
+    padding:18px 16px 28px;max-height:92dvh;overflow-y:auto;}
+  .modal h2{margin-bottom:4px;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .chip{background:#3a3a3a;border:2px solid transparent;border-radius:999px;
+    padding:8px 12px;font-size:14px;font-weight:700;color:#fff;}
+  .chip.sel{border-color:var(--green);background:#1d3a26;}
+  .tipo-btn{min-height:64px;font-size:18px;}
+  /* ---- tarjeta final ---- */
+  .final-card{background:var(--card);border:2px solid var(--green);border-radius:20px;
+    padding:22px 16px;text-align:center;display:flex;flex-direction:column;gap:12px;}
+  .final-card .res{font-weight:900;font-size:52px;}
+  .goles-lista{text-align:left;display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+  .gol-item{background:var(--card2);border-radius:12px;padding:10px 12px;font-size:15px;
+    border-left:6px solid var(--blue);}
+  .gol-item .min{font-weight:900;margin-right:8px;}
+  .gol-item .tipo{font-size:13px;color:var(--muted);}
+  #banner-offline{display:none;background:#7a2e00;color:#ffd9a8;text-align:center;
+    font-weight:700;font-size:14px;padding:10px;border-radius:12px;}
+  #banner-offline.ver{display:block;}
+  .error{background:#3d1215;border:1px solid var(--red);color:#ffb4b8;border-radius:12px;
+    padding:12px;font-size:14px;display:none;line-height:1.5;}
+  .error.ver{display:block;}
+  .nota{font-size:13px;color:var(--muted);line-height:1.6;}
+  .viendo{position:fixed;top:10px;right:10px;z-index:60;background:#2c2c2c;
+    border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-weight:800;font-size:14px;}
+  code{background:#000;padding:2px 6px;border-radius:6px;font-size:13px;}
+</style>
+</head>
+<body>
+<div id="viendo" class="viendo" style="display:none">👁 0</div>
+<div class="wrap">
+
+  <div id="banner-offline">⚠️ Sin conexión — reconectando…</div>
+  <div id="error" class="error"></div>
+
+  <!-- ============ SETUP ============ -->
+  <section id="pantalla-setup" class="pantalla">
+    <h1>⚽ Marcador Familiar</h1>
+    <p class="sub">Configuración inicial (solo la primera vez)</p>
+    <div class="card">
+      <label>Pega aquí tu firebaseConfig (JSON)</label>
+      <textarea id="setup-json" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"...","appId":"..."}'></textarea>
+      <p class="nota" style="margin-top:10px">Se obtiene en la <b>consola de Firebase</b> → tu proyecto → <b>Configuración del proyecto</b> → "Tus apps" → app web.<br>
+      Además configura: <b>Realtime Database</b> con las reglas del comentario al inicio de este archivo, y en <b>Authentication</b> activa <b>Correo electrónico/contraseña</b> con tu usuario de administrador.</p>
+      <button class="btn" id="btn-setup" style="margin-top:12px">Guardar y continuar</button>
+    </div>
+  </section>
+
+  <!-- ============ LOGIN ADMIN ============ -->
+  <section id="pantalla-login" class="pantalla">
+    <h1>⚽ Marcador Familiar</h1>
+    <p class="sub">Acceso del administrador</p>
+    <div class="card">
+      <label>Correo</label>
+      <input type="text" id="login-email" inputmode="email" autocomplete="username" placeholder="tu@correo.com">
+      <label style="margin-top:12px;display:block">Contraseña</label>
+      <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••">
+      <button class="btn" id="btn-login" style="margin-top:12px">Entrar</button>
+      <p class="nota" style="margin-top:10px">Es el usuario que creaste en Firebase → Authentication → Usuarios.</p>
+    </div>
+  </section>
+
+  <!-- ============ PIN ============ -->
+  <section id="pantalla-pin" class="pantalla">
+    <h1>🔒 PIN de administrador</h1>
+    <p class="sub">Solo tú puedes llevar el marcador</p>
+    <div class="card">
+      <input type="password" id="pin-entrada" class="pin-input" inputmode="numeric"
+             maxlength="4" placeholder="••••" autocomplete="off">
+      <button class="btn" id="btn-pin" style="margin-top:12px">Entrar</button>
+      <button class="btn ghost" id="btn-pin-reset" style="margin-top:10px;font-size:14px;min-height:48px">
+        Olvidé el PIN · borrar partido y empezar de nuevo</button>
+    </div>
+  </section>
+
+  <!-- ============ CREAR PARTIDO ============ -->
+  <section id="pantalla-crear" class="pantalla">
+    <h1>⚽ Nuevo partido</h1>
+    <div class="card">
+      <label>Título del partido (opcional)</label>
+      <input type="text" id="titulo" placeholder="Ej. NC Fall · Semifinal" maxlength="40">
+    </div>
+    <div class="card">
+      <label>Equipo A · FKK (equipo base)</label>
+      <input type="text" id="nombreA" placeholder="Ej. Florida Kraze" maxlength="24">
+      <label style="margin-top:12px;display:block">Color del Equipo A</label>
+      <div class="swatches" id="swA"></div>
+      <label style="margin-top:12px;display:block">Logo del Equipo A (PNG/JPG, opcional)</label>
+      <input type="file" id="logoA" accept="image/png,image/jpeg" style="margin-top:6px">
+      <img id="logoA-prev" class="logo-prev" alt="Logo A">
+      <label style="margin-top:12px;display:block">Jugadoras · Equipo A (una por línea)</label>
+      <textarea id="rosterA" placeholder="Spirit&#10;Ana&#10;Lucía"></textarea>
+      <button class="btn ghost" id="btn-fav-fkk" type="button" style="font-size:14px;min-height:48px;margin-top:8px">★ Guardar equipo y lista como favoritos</button>
+    </div>
+    <div class="card">
+      <label>Equipo B</label>
+      <input type="text" id="nombreB" placeholder="Ej. Rival FC" maxlength="24">
+      <label style="margin-top:12px;display:block">Color del Equipo B</label>
+      <div class="swatches" id="swB"></div>
+      <label style="margin-top:12px;display:block">Logo del Equipo B (PNG/JPG, opcional)</label>
+      <input type="file" id="logoB" accept="image/png,image/jpeg" style="margin-top:6px">
+      <img id="logoB-prev" class="logo-prev" alt="Logo B">
+      <label style="margin-top:12px;display:block">Jugadoras · Equipo B (una por línea)</label>
+      <textarea id="rosterB" placeholder="Portera&#10;Delantera 9"></textarea>
+    </div>
+    <div class="card">
+      <label>Duración de cada periodo (minutos)</label>
+      <div class="seg" id="seg-min">
+        <button data-v="35" class="sel">35</button>
+        <button data-v="40">40</button>
+        <button data-v="45">45</button>
+      </div>
+      <input type="number" id="min-custom" placeholder="Otro (minutos)" min="1" max="120" style="margin-top:8px">
+      <label style="margin-top:12px;display:block">Periodos</label>
+      <div class="seg" id="seg-per">
+        <button data-v="1">1 periodo</button>
+        <button data-v="2" class="sel">2 periodos</button>
+      </div>
+      <label style="margin-top:12px;display:block">PIN de administrador (4 dígitos)</label>
+      <input type="password" id="pin-nuevo" class="pin-input" inputmode="numeric"
+             maxlength="4" placeholder="••••" autocomplete="off">
+    </div>
+    <button class="btn verde" id="btn-empezar">▶ Empezar partido</button>
+  </section>
+
+  <!-- ============ CONTROLES EN VIVO ============ -->
+  <section id="pantalla-controles" class="pantalla">
+    <div class="marcador">
+      <div class="equipos">
+        <div class="eq">
+          <div id="logoA-c"></div>
+          <div class="nombre" id="nomA-c">A</div>
+          <div class="num" id="numA">0</div>
+          <button class="btn-gol verde btn" id="golA" style="background:var(--green);color:#0b2b16">+1 GOL</button>
+          <div class="corr">
+            <button id="menosA">−</button><button id="masA">+</button>
+          </div>
+        </div>
+        <div class="vs">–</div>
+        <div class="eq">
+          <div id="logoB-c"></div>
+          <div class="nombre" id="nomB-c">B</div>
+          <div class="num" id="numB">0</div>
+          <button class="btn-gol verde btn" id="golB" style="background:var(--green);color:#0b2b16">+1 GOL</button>
+          <div class="corr">
+            <button id="menosB">−</button><button id="masB">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reloj-card">
+      <div class="reloj" id="reloj" title="Tocar para ajustar">00:00</div>
+      <p class="nota" style="margin:0">Toca el reloj para ajustar el tiempo</p>
+      <div class="periodo" id="periodo-txt">1T</div>
+      <div class="reloj-btns">
+        <button id="btn-reloj" class="principal">▶ Iniciar</button>
+        <button id="btn-cero">⟲ Cero</button>
+        <button id="btn-periodo">→ Descanso</button>
+        <button id="btn-fin" style="background:var(--red)">■ Finalizar</button>
+      </div>
+    </div>
+
+    <button class="btn-deshacer" id="btn-deshacer">↩ Deshacer última acción</button>
+
+    <div class="card">
+      <h2 style="margin-bottom:8px">Goles del partido</h2>
+      <div class="goles-lista" id="goles-admin"></div>
+    </div>
+
+    <button class="btn" id="btn-enlace" style="min-height:56px;font-size:16px;background:#3a3a3a">🔗 Compartir enlace público</button>
+
+    <button class="btn ghost" id="btn-salir" style="font-size:14px;min-height:48px">Cerrar sesión de administrador</button>
+    <button class="btn ghost" id="btn-home" style="font-size:14px;min-height:48px">⌂ Inicio · crear partido nuevo</button>
+  </section>
+
+  <!-- ============ TARJETA FINAL ============ -->
+  <section id="pantalla-final" class="pantalla">
+    <div class="final-card">
+      <div style="font-weight:900;letter-spacing:2px;color:var(--green)">■ FINAL</div>
+      <div class="res" id="final-res">0 – 0</div>
+      <div style="font-weight:800;font-size:18px" id="final-equipos"></div>
+      <div class="goles-lista" id="final-goles"></div>
+      <img id="final-img" alt="Resultado final" style="display:none;width:100%;border-radius:16px;border:1px solid #333">
+      <button class="btn" id="btn-compartir">📤 Compartir resultado</button>
+      <button class="btn verde" id="btn-imagen">🖼 Imagen del resultado</button>
+      <button class="btn gris" id="btn-nuevo">＋ Nuevo partido</button>
+    </div>
+  </section>
+
+  <!-- ============ MODAL GOL ============ -->
+  <div class="modal-fondo" id="modal-gol">
+    <div class="modal">
+      <h2 id="modal-titulo">Gol</h2>
+      <p class="sub" style="text-align:left" id="modal-min">Minuto --</p>
+      <label style="display:block;margin-top:10px">¿Quién marcó?</label>
+      <div class="chips" id="chips-jug"></div>
+      <p class="nota" id="chips-hint" style="display:none;margin:8px 2px 0">Sin lista de jugadoras para este equipo — escribe el nombre abajo.</p>
+      <input type="text" id="gol-jugador" placeholder="O escribe el nombre…" style="margin-top:8px">
+      <label style="display:block;margin-top:12px">Tipo de gol</label>
+      <div class="seg">
+        <button class="tipo-btn sel" data-t="jugada">⚽ Jugada</button>
+        <button class="tipo-btn" data-t="penal">🥅 Penal</button>
+      </div>
+      <label style="display:block;margin-top:12px">Asistencia (opcional)</label>
+      <div class="chips" id="chips-asis"></div>
+      <div class="fila" style="margin-top:16px">
+        <button class="btn gris" id="gol-cancelar">Cancelar</button>
+        <button class="btn verde" id="gol-confirmar">Confirmar gol</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+/* ================= ESTADO ================= */
+let db = null, estado = null, serverOffset = 0;
+let golEquipo = 'a', golTipo = 'jugada', golJugSel = '', golAsisSel = '';
+const COLORES = ['#1E5AA8','#D2202F','#1B7A3D','#F2B705','#FFFFFF','#E8721C','#7B2FBE','#29A3D8','#E85D9E','#111111'];
+let colorA = COLORES[0], colorB = COLORES[1], logoAData = '', logoBData = '';
+let minSel = 35, perSel = 2;
+/* Caché de las últimas listas de jugadoras (por si un partido se crea sin ellas) */
+let rosterCache = { a: [], b: [] };
+try{ const rc = JSON.parse(localStorage.getItem('mf_roster') || 'null');
+  if(rc && Array.isArray(rc.a) && Array.isArray(rc.b)) rosterCache = rc; }catch(e){}
+
+/* Favorito FKK: el equipo base de su hija, siempre predeterminado */
+function favFKK(){ try{ return JSON.parse(localStorage.getItem('mf_fkk') || 'null'); }catch(e){ return null; } }
+function guardarFavFKK(){
+  const f = { nombre: $('nombreA').value.trim() || 'FKK', roster: rosterDe('rosterA'),
+              color: colorA, logo: logoAData };
+  try{ localStorage.setItem('mf_fkk', JSON.stringify(f)); }catch(e){}
+  const b = $('btn-fav-fkk'), t = b.textContent;
+  b.textContent = '★ ¡Guardado como favorito!';
+  setTimeout(()=>{ b.textContent = t; }, 2000);
+}
+function cargarFavFKK(){
+  const f = favFKK(); if(!f) return;
+  if(f.nombre && !$('nombreA').value) $('nombreA').value = f.nombre;
+  if(f.roster && f.roster.length && !$('rosterA').value) $('rosterA').value = f.roster.join('\n');
+  if(f.color){ colorA = f.color; armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v); }
+  if(f.logo && !logoAData){ logoAData = f.logo; $('logoA-prev').src = f.logo; $('logoA-prev').style.display = 'block'; }
+}
+/* Recuerda los ajustes del partido (minutos y periodos) para la próxima vez */
+function guardarDefaults(minutos, periodos){
+  try{ localStorage.setItem('mf_defaults', JSON.stringify({ minutos, periodos })); }catch(e){}
+}
+function aplicarDefaults(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem('mf_defaults') || 'null'); }catch(e){}
+  if(!d) return;
+  if(d.periodos === 1 || d.periodos === 2){
+    perSel = d.periodos;
+    document.querySelectorAll('#seg-per button').forEach(x=>x.classList.toggle('sel', +x.dataset.v === perSel));
+  }
+  if(d.minutos > 0){
+    if([35, 40, 45].indexOf(d.minutos) >= 0){
+      minSel = d.minutos; $('min-custom').value = '';
+      document.querySelectorAll('#seg-min button').forEach(x=>x.classList.toggle('sel', +x.dataset.v === minSel));
+    } else {
+      $('min-custom').value = d.minutos;
+      document.querySelectorAll('#seg-min button').forEach(x=>x.classList.remove('sel'));
+    }
+  }
+}
+
+const $ = id => document.getElementById(id);
+const ahora = () => Date.now() + serverOffset;
+
+/* Hash del PIN (para no guardar el PIN en texto claro en la base pública) */
+async function sha256hex(str){
+  const s = 'mf$' + String(str);
+  try{
+    if(window.crypto && crypto.subtle){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+      return 's256:' + [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(e){}
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57; // fallback sin WebCrypto: solo ofusca
+  for(let i=0;i<s.length;i++){ const ch = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return 'fb:' + (4294967296*(2097151&h2) + (h1>>>0)).toString(16);
+}
+
+function mostrarError(msg){
+  const e = $('error'); e.textContent = msg; e.classList.add('ver');
+  setTimeout(()=>e.classList.remove('ver'), 6000);
+}
+function mostrar(id){
+  document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
+  $(id).classList.add('activa');
+  window.scrollTo(0,0);
+}
+
+/* ================= CONFIG ================= */
+function leerConfig(){
+  try{
+    const g = localStorage.getItem('mf_config');
+    if(g){ const c = JSON.parse(g); if(c && c.apiKey) return c; }
+  }catch(e){}
+  const w = window.FIREBASE_CONFIG;
+  if(w && w.apiKey && w.apiKey !== 'PEGA-AQUI') return w;
+  return null;
+}
+
+/* ================= RELOJ ================= */
+function segReloj(r){
+  if(!r) return 0;
+  if(r.corriendo && r.inicioEn){
+    return Math.max(0, (r.baseSeg||0) + (ahora() - r.inicioEn)/1000);
+  }
+  return r.baseSeg || 0;
+}
+function fmt(s){
+  s = Math.floor(s);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+function etiquetaPeriodo(){
+  if(!estado) return '';
+  if(estado.config.periodos < 2) return 'Único';
+  const p = estado.reloj.periodo;
+  return p === 'D' ? 'Descanso' : (p + 'T');
+}
+
+/* ================= UNDO ================= */
+function pilaUndo(){
+  try{ return JSON.parse(localStorage.getItem('mf_undo') || '[]'); }catch(e){ return []; }
+}
+function guardarPila(p){ localStorage.setItem('mf_undo', JSON.stringify(p.slice(-25))); }
+function snapshot(){
+  if(!estado) return;
+  const p = pilaUndo();
+  p.push(JSON.parse(JSON.stringify({ marcador: estado.marcador, reloj: estado.reloj, goles: estado.goles || {} })));
+  guardarPila(p);
+  actualizarUndo();
+}
+function actualizarUndo(){
+  $('btn-deshacer').disabled = pilaUndo().length === 0;
+}
+function deshacer(){
+  const p = pilaUndo();
+  const s = p.pop();
+  if(!s){ return; }
+  guardarPila(p);
+  db.ref('partido').update({ marcador: s.marcador, reloj: s.reloj, goles: s.goles || {} })
+    .catch(e => mostrarError('No se pudo deshacer: ' + e.message));
+  actualizarUndo();
+}
+
+/* ================= LOGOS ================= */
+function procesarLogo(file){
+  return new Promise((resolve, reject)=>{
+    if(!file){ resolve(''); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const MAX = 256;
+      const k = Math.min(1, MAX / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      // PNG conserva transparencia; JPEG se comprime a 0.85
+      const tipo = (file.type === 'image/png') ? 'image/png' : 'image/jpeg';
+      resolve(c.toDataURL(tipo, 0.85));
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen')); };
+    img.src = url;
+  });
+}
+
+/* ================= CREAR PARTIDO ================= */
+function armarSwatches(contId, set){
+  const cont = $(contId); cont.innerHTML = '';
+  COLORES.forEach(c=>{
+    const b = document.createElement('button');
+    b.className = 'sw' + (((contId==='swA'?colorA:colorB)===c)?' sel':'');
+    b.style.background = c; b.type = 'button';
+    b.onclick = ()=>{ set(c); armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v); };
+    cont.appendChild(b);
+  });
+  const col = document.createElement('input');
+  col.type = 'color'; col.className = 'rueda'; col.title = 'Otro color';
+  col.oninput = ()=>{ set(col.value); armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v); };
+  cont.appendChild(col);
+}
+function rosterDe(id){ return $(id).value.split('\n').map(s=>s.trim()).filter(Boolean); }
+
+async function empezarPartido(){
+  const nA = $('nombreA').value.trim() || 'Equipo A';
+  const nB = $('nombreB').value.trim() || 'Equipo B';
+  const pin = $('pin-nuevo').value.trim();
+  if(!/^\d{4}$/.test(pin)){ mostrarError('El PIN debe tener 4 dígitos.'); return; }
+  const minCustom = parseInt($('min-custom').value, 10);
+  const minutos = (minCustom > 0) ? minCustom : minSel;
+  guardarDefaults(minutos, perSel);
+  const nuevo = {
+    config: {
+      a: { nombre: nA, color: colorA, logo: logoAData },
+      b: { nombre: nB, color: colorB, logo: logoBData },
+      minutosPeriodo: minutos, periodos: perSel, pinHash: await sha256hex(pin),
+      titulo: $('titulo').value.trim(),
+      creadoEn: firebase.database.ServerValue.TIMESTAMP
+    },
+    marcador: { a: 0, b: 0 },
+    reloj: { baseSeg: 0, inicioEn: null, corriendo: false, periodo: 1, terminado: false },
+    goles: {},
+    rosterA: rosterDe('rosterA'),
+    rosterB: rosterDe('rosterB')
+  };
+  rosterCache = { a: nuevo.rosterA, b: nuevo.rosterB };
+  try{ localStorage.setItem('mf_roster', JSON.stringify(rosterCache)); }catch(e){}
+  try{
+    // Marcar la sesión ANTES del set: el evento local de Firebase llega
+    // antes de que se resuelva el await, y sin esto pedía el PIN de nuevo.
+    sessionStorage.setItem('mf_pin_ok', '1');
+    await db.ref('partido').set(nuevo);
+    localStorage.removeItem('mf_undo');
+  }catch(e){ sessionStorage.removeItem('mf_pin_ok'); mostrarError('No se pudo crear el partido: ' + e.message); }
+}
+
+/* ================= RELOJ: ACCIONES ================= */
+function rIniciar(){
+  snapshot();
+  const s = segReloj(estado.reloj);
+  db.ref('partido/reloj').update({ baseSeg: s, inicioEn: firebase.database.ServerValue.TIMESTAMP, corriendo: true })
+    .catch(e=>mostrarError(e.message));
+}
+function rPausar(){
+  snapshot();
+  db.ref('partido/reloj').update({ baseSeg: Math.floor(segReloj(estado.reloj)), inicioEn: null, corriendo: false })
+    .catch(e=>mostrarError(e.message));
+}
+function rCero(){
+  if(!confirm('¿Poner el reloj en cero?')) return;
+  snapshot();
+  db.ref('partido/reloj').update({ baseSeg: 0, inicioEn: null, corriendo: false })
+    .catch(e=>mostrarError(e.message));
+}
+function rPeriodo(){
+  if(estado.config.periodos < 2) return;
+  snapshot();
+  const p = estado.reloj.periodo;
+  const nx = (p === 2 || p === '2') ? 1 : (p === 'D' ? 2 : 'D');
+  const up = { periodo: nx };
+  if(nx === 'D'){ // al entrar al descanso se pausa el reloj
+    up.baseSeg = Math.floor(segReloj(estado.reloj));
+    up.inicioEn = null; up.corriendo = false;
+  }
+  if(nx === 2 || nx === 1){ // al empezar un tiempo el cronómetro arranca en cero (detenido)
+    up.baseSeg = 0;
+    up.inicioEn = null; up.corriendo = false;
+  }
+  db.ref('partido/reloj').update(up).catch(e=>mostrarError(e.message));
+}
+function rFinalizar(){
+  if(!confirm('¿Finalizar el partido?')) return;
+  snapshot();
+  db.ref('partido/reloj').update({ baseSeg: Math.floor(segReloj(estado.reloj)), inicioEn: null, corriendo: false, terminado: true })
+    .catch(e=>mostrarError(e.message));
+}
+
+/* ================= GOLES ================= */
+function logoHTML(eq){
+  const c = estado.config[eq];
+  if(c.logo) return `<img class="logo" src="${c.logo}" alt="">`;
+  const ini = (c.nombre||'?').trim().charAt(0).toUpperCase();
+  return `<div class="logo-txt" style="background:${c.color}">${ini}</div>`;
+}
+function abrirGol(eq){
+  golEquipo = eq; golTipo = 'jugada'; golJugSel = ''; golAsisSel = '';
+  $('gol-jugador').value = '';
+  $('modal-titulo').textContent = 'Gol de ' + estado.config[eq].nombre;
+  $('modal-min').textContent = 'Minuto ' + Math.floor(segReloj(estado.reloj)/60) + "'";
+  let roster = eq === 'a' ? (estado.rosterA||[]) : (estado.rosterB||[]);
+  if(!roster.length && rosterCache[eq] && rosterCache[eq].length) roster = rosterCache[eq];
+  const hint = $('chips-hint');
+  if(eq === 'b'){
+    hint.textContent = 'Nombre opcional: puedes confirmar el gol sin escribir quién lo hizo.';
+    hint.style.display = 'block';
+  } else {
+    hint.textContent = 'Sin lista de jugadoras para este equipo — escribe el nombre abajo.';
+    hint.style.display = roster.length ? 'none' : 'block';
+  }
+  const cj = $('chips-jug'); cj.innerHTML = '';
+  roster.forEach(n=>{
+    const b = document.createElement('button'); b.className='chip'; b.type='button'; b.textContent = n;
+    b.onclick = ()=>{ golJugSel = n; $('gol-jugador').value = n;
+      cj.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); };
+    cj.appendChild(b);
+  });
+  const ca = $('chips-asis'); ca.innerHTML = '';
+  const sin = document.createElement('button'); sin.className='chip sel'; sin.type='button'; sin.textContent='Sin asistencia';
+  sin.onclick = ()=>{ golAsisSel=''; ca.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel')); sin.classList.add('sel'); };
+  ca.appendChild(sin);
+  roster.forEach(n=>{
+    const b = document.createElement('button'); b.className='chip'; b.type='button'; b.textContent = n;
+    b.onclick = ()=>{ golAsisSel = n;
+      ca.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); };
+    ca.appendChild(b);
+  });
+  document.querySelectorAll('.tipo-btn').forEach(b=>{
+    b.classList.toggle('sel', b.dataset.t === 'jugada');
+    b.onclick = ()=>{ golTipo = b.dataset.t;
+      document.querySelectorAll('.tipo-btn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); };
+  });
+  $('modal-gol').classList.add('abierto');
+}
+function registrarGol(eq, jugador, tipo, asis){
+  snapshot();
+  explosionColores();
+  const minuto = Math.floor(segReloj(estado.reloj)/60);
+  const key = db.ref('partido/goles').push().key;
+  const up = {};
+  up['partido/goles/' + key] = { id: key, equipo: eq, minuto, jugador: jugador || '', tipo: tipo || 'jugada', asis: asis || '' };
+  up['partido/marcador/' + eq] = (estado.marcador[eq]||0) + 1;
+  return db.ref().update(up);
+}
+function confirmarGol(){
+  const jugador = $('gol-jugador').value.trim() || golJugSel;
+  if(!jugador && golEquipo === 'a'){ mostrarError('Indica quién marcó el gol.'); return; }
+  registrarGol(golEquipo, jugador, golTipo, golAsisSel)
+    .then(()=>$('modal-gol').classList.remove('abierto'))
+    .catch(e=>mostrarError(e.message));
+}
+function corregir(eq, d){
+  snapshot();
+  const v = Math.max(0, (estado.marcador[eq]||0) + d);
+  db.ref('partido/marcador/' + eq).set(v).catch(e=>mostrarError(e.message));
+}
+
+/* ================= CONFETI ================= */
+/* Explosión de colores al marcar un gol (sin librerías externas) */
+let fxCanvas = null, fxCtx = null, fxPartes = [], fxRAF = null;
+function explosionColores(){
+  if(!fxCanvas){
+    fxCanvas = document.createElement('canvas');
+    fxCanvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:200;';
+    document.body.appendChild(fxCanvas);
+    fxCtx = fxCanvas.getContext('2d');
+  }
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  fxCanvas.width = window.innerWidth * dpr;
+  fxCanvas.height = window.innerHeight * dpr;
+  const colores = ['#ff4757','#ffa502','#2ed573','#1e90ff','#eccc68','#ff6b81','#7bed9f','#70a1ff','#f368e0','#ff9f43','#ffffff'];
+  const cx = fxCanvas.width / 2, cy = fxCanvas.height * 0.35;
+  for(let i = 0; i < 150; i++){
+    const a = Math.random() * Math.PI * 2;
+    const sp = (4 + Math.random() * 10) * dpr;
+    fxPartes.push({
+      x: cx, y: cy,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 4 * dpr,
+      g: 0.32 * dpr, s: (5 + Math.random() * 7) * dpr,
+      c: colores[i % colores.length],
+      r: Math.random() * Math.PI, vr: (Math.random() - .5) * 0.3,
+      vida: 1, dec: 0.008 + Math.random() * 0.012
+    });
+  }
+  if(!fxRAF) fxLoop();
+}
+function fxLoop(){
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  fxPartes = fxPartes.filter(p => p.vida > 0 && p.y < fxCanvas.height + 40 * dpr);
+  for(const p of fxPartes){
+    p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.vida -= p.dec;
+    fxCtx.save();
+    fxCtx.globalAlpha = Math.max(0, Math.min(1, p.vida));
+    fxCtx.translate(p.x, p.y); fxCtx.rotate(p.r);
+    fxCtx.fillStyle = p.c;
+    fxCtx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+    fxCtx.restore();
+  }
+  if(fxPartes.length){ fxRAF = requestAnimationFrame(fxLoop); }
+  else { fxRAF = null; fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height); }
+}
+
+/* ================= IMAGEN DEL RESULTADO ================= */
+/* Genera un JPG del resultado final: festivo si gana FKK (equipo A), básico si no */
+function dibujarNombre(x, nombre, cx, y, maxW){
+  const palabras = String(nombre || '').split(' ');
+  const lineas = [];
+  let lin = '';
+  palabras.forEach(p=>{
+    const t = lin ? lin + ' ' + p : p;
+    if(x.measureText(t).width > maxW && lin){ lineas.push(lin); lin = p; }
+    else lin = t;
+  });
+  if(lin) lineas.push(lin);
+  lineas.slice(0, 3).forEach((l, i)=> x.fillText(l, cx, y + i * 56));
+}
+function dibujarResultado(){
+  const W = 1080, H = 1350;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const cfg = estado.config, m = estado.marcador || {a:0, b:0};
+  const ga = m.a || 0, gb = m.b || 0;
+  const gana = ga > gb; // FKK es el equipo A
+  let fecha = '';
+  try{ fecha = cfg.creadoEn ? new Date(cfg.creadoEn).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}) : ''; }catch(e){}
+  const cx = W / 2;
+
+  if(gana){
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0b1e3a'); g.addColorStop(.55, '#0b1220'); g.addColorStop(1, '#0e2f1c');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const cols = ['#ff4757','#ffa502','#2ed573','#1e90ff','#eccc68','#f368e0','#ffffff'];
+    for(let i = 0; i < 220; i++){
+      x.fillStyle = cols[i % cols.length];
+      x.globalAlpha = .5 + Math.random() * .5;
+      const s = 6 + Math.random() * 14;
+      x.save(); x.translate(Math.random()*W, Math.random()*H); x.rotate(Math.random()*Math.PI);
+      x.fillRect(-s/2, -s/4, s, s/2); x.restore();
+    }
+    x.globalAlpha = 1;
+  } else {
+    x.fillStyle = '#141414'; x.fillRect(0, 0, W, H);
+  }
+
+  x.textAlign = 'center';
+  x.font = '900 84px Arial';
+  if(gana){ x.fillStyle = '#fff'; x.fillText('🏆 VICTORY!', cx, 200); }
+  else { x.fillStyle = '#b9b9b9'; x.fillText('FULL TIME', cx, 200); }
+
+  if(cfg.titulo){
+    x.font = '700 44px Arial'; x.fillStyle = '#c8cfdd';
+    x.fillText(String(cfg.titulo).slice(0, 40), cx, 285);
+  }
+
+  const yEq = 450;
+  x.fillStyle = '#fff'; x.font = '800 46px Arial';
+  dibujarNombre(x, cfg.a.nombre, W * 0.25, yEq, W * 0.42);
+  dibujarNombre(x, cfg.b.nombre, W * 0.75, yEq, W * 0.42);
+  x.font = '900 300px Arial';
+  x.fillText(ga + ' – ' + gb, cx, yEq + 330);
+
+  if(fecha){ x.font = '700 40px Arial'; x.fillStyle = '#c8cfdd'; x.fillText(fecha, cx, H - 160); }
+  x.font = '700 36px Arial'; x.fillStyle = '#8a8a8a';
+  x.fillText('Family scoreboard ⚽', cx, H - 90);
+  return c;
+}
+async function compartirImagen(){
+  try{
+    const blob = await new Promise(r=>dibujarResultado().toBlob(r, 'image/jpeg', 0.92));
+    if(!blob) throw new Error('vacío');
+    const file = new File([blob], 'resultado-final.jpg', {type:'image/jpeg'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'Resultado final ⚽'});
+    } else {
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = 'resultado-final.jpg';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u), 8000);
+    }
+  }catch(e){ mostrarError('No se pudo generar la imagen: ' + e.message); }
+}
+
+/* ================= RENDER ================= */
+function listaGoles(){
+  return Object.values(estado.goles || {}).sort((x,y)=> (x.minuto - y.minuto) || (x.id < y.id ? -1 : 1));
+}
+function golHTML(g){
+  const eq = estado.config[g.equipo];
+  const icono = g.tipo === 'penal' ? '🥅' : '⚽';
+  const tipo = g.tipo === 'penal' ? ' <span class="tipo">(penal)</span>' : '';
+  const asis = g.asis ? ` <span class="tipo">· asis: ${g.asis}</span>` : '';
+  const quien = g.jugador ? `<b>${g.jugador}</b>` : '<b>Gol</b>';
+  return `<div class="gol-item" style="border-left-color:${eq.color}">
+    <span class="min">${g.minuto}'</span>${icono} ${quien}${tipo}${asis}</div>`;
+}
+function render(){
+  if(!estado){ mostrar('pantalla-crear'); return; }
+  if(estado.reloj.terminado){ renderFinal(); mostrar('pantalla-final'); return; }
+  if(sessionStorage.getItem('mf_pin_ok') !== '1'){ mostrar('pantalla-pin'); return; }
+  mostrar('pantalla-controles');
+  // marcador
+  $('nomA-c').textContent = estado.config.a.nombre;
+  $('nomB-c').textContent = estado.config.b.nombre;
+  $('numA').textContent = estado.marcador.a || 0;
+  $('numB').textContent = estado.marcador.b || 0;
+  $('numA').style.borderLeftColor = estado.config.a.color;
+  $('numB').style.borderLeftColor = estado.config.b.color;
+  $('logoA-c').innerHTML = logoHTML('a');
+  $('logoB-c').innerHTML = logoHTML('b');
+  $('golA').style.background = estado.config.a.color;
+  $('golB').style.background = estado.config.b.color;
+  // reloj
+  $('reloj').textContent = fmt(segReloj(estado.reloj));
+  const ptxt = $('periodo-txt');
+  ptxt.textContent = etiquetaPeriodo() + ' · ' + estado.config.minutosPeriodo + "'";
+  ptxt.style.background = estado.reloj.periodo === 'D' ? '#2b3a55' : '#3a3a3a';
+  const br = $('btn-reloj');
+  if(estado.reloj.corriendo){ br.textContent = '⏸ Pausar'; }
+  else { br.textContent = '▶ Iniciar'; }
+  $('btn-periodo').style.display = estado.config.periodos > 1 ? '' : 'none';
+  const per = estado.reloj.periodo;
+  $('btn-periodo').textContent = (per === 'D') ? '→ 2do tiempo'
+    : ((per === 2 || per === '2') ? '→ 1er tiempo' : '→ Descanso');
+  // goles
+  const gl = listaGoles();
+  $('goles-admin').innerHTML = gl.length ? gl.map(golHTML).join('')
+    : '<p class="nota">Aún no hay goles.</p>';
+  actualizarUndo();
+}
+function renderFinal(){
+  const a = estado.config.a, b = estado.config.b;
+  $('final-res').textContent = (estado.marcador.a||0) + ' – ' + (estado.marcador.b||0);
+  $('final-res').style.color = '#fff';
+  $('final-equipos').innerHTML =
+    `<span style="color:${a.color}">●</span> ${a.nombre} &nbsp;·&nbsp; <span style="color:${b.color}">●</span> ${b.nombre}`;
+  const gl = listaGoles();
+  $('final-goles').innerHTML = gl.length ? gl.map(golHTML).join('')
+    : '<p class="nota">Sin goles.</p>';
+  // vista previa de la imagen del resultado (JPG para compartir)
+  try{
+    $('final-img').src = dibujarResultado().toDataURL('image/jpeg', 0.9);
+    $('final-img').style.display = 'block';
+  }catch(e){ /* sin vista previa */ }
+}
+function compartir(){
+  const a = estado.config.a, b = estado.config.b;
+  const tit = estado.config.titulo ? `🏆 ${estado.config.titulo}\n` : '';
+  let t = tit + `⚽ FINAL: ${a.nombre} ${estado.marcador.a||0} – ${estado.marcador.b||0} ${b.nombre}\n`;
+  listaGoles().forEach(g=>{
+    t += `${g.minuto}' ${g.jugador || 'Gol'} (${estado.config[g.equipo].nombre})${g.tipo==='penal'?' [penal]':''}${g.asis?' · asis: '+g.asis:''}\n`;
+  });
+  if(navigator.share){ navigator.share({ title: 'Resultado final', text: t }).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(t).then(()=>alert('Resultado copiado.')).catch(()=>alert(t)); }
+  else { alert(t); }
+}
+/* Mantener la pantalla encendida mientras se lleva el partido */
+let wakeLock = null;
+async function pedirWakeLock(){
+  try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }
+  catch(e){ wakeLock = null; }
+}
+/* Enlace público para la familia (misma dirección del sitio, página principal) */
+function enlacePublico(){
+  try{
+    const u = new URL(location.href);
+    if(u.protocol === 'http:' || u.protocol === 'https:'){
+      u.pathname = u.pathname.replace(/admin\.html$/, '');
+      if(!u.pathname.endsWith('/')) u.pathname += '/';
+      u.search = ''; u.hash = '';
+      return u.toString();
+    }
+  }catch(e){}
+  return 'https://rad-speculoos-8fdcb4.netlify.app/';
+}
+async function compartirEnlace(){
+  const link = enlacePublico();
+  if(navigator.share){
+    try{ await navigator.share({ title: 'Marcador en vivo ⚽', text: 'Sigue el partido en vivo:', url: link }); }
+    catch(e){ /* cancelado por el usuario */ }
+  } else if(navigator.clipboard){
+    try{ await navigator.clipboard.writeText(link); alert('Enlace copiado: ' + link); }
+    catch(e){ alert(link); }
+  } else { alert(link); }
+}
+/* Ajuste manual del cronómetro (ej. el partido ya va en el minuto 7) */
+function ajustarReloj(){
+  if(!estado || !estado.reloj) return;
+  const v = prompt('Ajustar el cronómetro (MM:SS o solo minutos):', fmt(segReloj(estado.reloj)));
+  if(v === null) return;
+  const m = String(v).trim().match(/^(\d{1,3})(?::(\d{1,2}))?$/);
+  if(!m){ mostrarError('Formato inválido. Ejemplo: 7:00'); return; }
+  const segs = m[2] ? parseInt(m[2], 10) : 0;
+  if(segs > 59){ mostrarError('Los segundos no pueden pasar de 59.'); return; }
+  const total = parseInt(m[1], 10) * 60 + segs;
+  snapshot();
+  const up = { baseSeg: total };
+  if(estado.reloj.corriendo){ up.inicioEn = firebase.database.ServerValue.TIMESTAMP; up.corriendo = true; }
+  else { up.inicioEn = null; up.corriendo = false; }
+  db.ref('partido/reloj').update(up).catch(e=>mostrarError(e.message));
+}
+function tick(){ if(estado && !estado.reloj.terminado && $('pantalla-controles').classList.contains('activa')){
+  $('reloj').textContent = fmt(segReloj(estado.reloj)); } }
+
+/* ================= ARRANQUE ================= */
+window.addEventListener('DOMContentLoaded', ()=>{
+  const cfg = leerConfig();
+  if(!cfg){
+    mostrar('pantalla-setup');
+    $('btn-setup').onclick = ()=>{
+      try{
+        const c = JSON.parse($('setup-json').value);
+        if(!c.apiKey || !c.databaseURL) throw new Error('faltan campos');
+        localStorage.setItem('mf_config', JSON.stringify(c));
+        location.reload();
+      }catch(e){ mostrarError('JSON inválido. Pega el objeto firebaseConfig completo.'); }
+    };
+    return;
+  }
+  let app;
+  try{ app = firebase.initializeApp(cfg); }
+  catch(e){ mostrar('pantalla-setup'); mostrarError('Config inválida: ' + e.message); return; }
+  db = firebase.database();
+
+  // ---- acceso del administrador (correo/contraseña de Firebase) ----
+  let appIniciada = false;
+  firebase.auth().onAuthStateChanged(user=>{
+    if(user){ if(!appIniciada){ appIniciada = true; iniciarApp(); } }
+    else if(appIniciada){ location.reload(); }
+    else { mostrar('pantalla-login'); }
+  });
+  $('btn-login').onclick = async ()=>{
+    const em = $('login-email').value.trim(), pw = $('login-pass').value;
+    if(!em || !pw){ mostrarError('Escribe tu correo y tu contraseña.'); return; }
+    const b = $('btn-login'); b.disabled = true;
+    try{ await firebase.auth().signInWithEmailAndPassword(em, pw); }
+    catch(e){
+      let m = 'No se pudo entrar. Revisa tu conexión.';
+      if(e.code==='auth/invalid-credential' || e.code==='auth/wrong-password') m = 'Correo o contraseña incorrectos.';
+      else if(e.code==='auth/user-not-found') m = 'Ese correo no está registrado como administrador.';
+      else if(e.code==='auth/too-many-requests') m = 'Demasiados intentos. Espera unos minutos.';
+      mostrarError(m + ' (' + (e.code||'error') + ')');
+    }
+    b.disabled = false;
+  };
+
+function iniciarApp(){
+  // swatches y logos del formulario crear
+  armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v);
+  $('logoA').onchange = e=>procesarLogo(e.target.files[0]).then(d=>{ logoAData=d;
+    if(d){ $('logoA-prev').src=d; $('logoA-prev').style.display='block'; } }).catch(err=>mostrarError(err.message));
+  $('logoB').onchange = e=>procesarLogo(e.target.files[0]).then(d=>{ logoBData=d;
+    if(d){ $('logoB-prev').src=d; $('logoB-prev').style.display='block'; } }).catch(err=>mostrarError(err.message));
+  document.querySelectorAll('#seg-min button').forEach(b=>b.onclick=()=>{
+    minSel = +b.dataset.v; $('min-custom').value='';
+    document.querySelectorAll('#seg-min button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); });
+  document.querySelectorAll('#seg-per button').forEach(b=>b.onclick=()=>{
+    perSel = +b.dataset.v;
+    document.querySelectorAll('#seg-per button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); });
+
+  $('btn-empezar').onclick = empezarPartido;
+  $('btn-fav-fkk').onclick = guardarFavFKK;
+  cargarFavFKK();
+  aplicarDefaults();
+  $('btn-pin').onclick = async ()=>{
+    const v = $('pin-entrada').value.trim();
+    const ok = (v !== '' && v === String(estado?.config?.pin || ''))
+      || (await sha256hex(v) === estado?.config?.pinHash);
+    if(ok){
+      sessionStorage.setItem('mf_pin_ok','1'); render();
+    } else mostrarError('PIN incorrecto.');
+  };
+  $('btn-pin-reset').onclick = ()=>{
+    if(confirm('¿Borrar el partido actual y empezar de nuevo?')){
+      db.ref('partido').remove().then(()=>{ sessionStorage.removeItem('mf_pin_ok'); localStorage.removeItem('mf_undo'); });
+    }
+  };
+
+  $('golA').onclick = ()=>abrirGol('a');
+  $('golB').onclick = ()=>registrarGol('b', '', 'jugada', '').catch(e=>mostrarError(e.message));
+  $('gol-cancelar').onclick = ()=>$('modal-gol').classList.remove('abierto');
+  $('gol-confirmar').onclick = confirmarGol;
+  $('masA').onclick = ()=>corregir('a', 1); $('menosA').onclick = ()=>corregir('a', -1);
+  $('masB').onclick = ()=>corregir('b', 1); $('menosB').onclick = ()=>corregir('b', -1);
+  $('btn-deshacer').onclick = deshacer;
+  $('btn-reloj').onclick = ()=>{ estado.reloj.corriendo ? rPausar() : rIniciar(); };
+  $('btn-cero').onclick = rCero;
+  $('btn-periodo').onclick = rPeriodo;
+  $('btn-fin').onclick = rFinalizar;
+  $('btn-compartir').onclick = compartir;
+  $('btn-imagen').onclick = compartirImagen;
+  $('btn-nuevo').onclick = ()=>{
+    if(confirm('¿Empezar un partido nuevo? Se borra el actual.')){
+      db.ref('partido').remove().then(()=>{ sessionStorage.removeItem('mf_pin_ok'); localStorage.removeItem('mf_undo'); });
+    }
+  };
+  $('btn-home').onclick = ()=>{
+    if(confirm('¿Ir al inicio para crear un partido nuevo? Se borrará el partido actual.')){
+      db.ref('partido').remove().then(()=>{ sessionStorage.removeItem('mf_pin_ok'); localStorage.removeItem('mf_undo'); });
+    }
+  };
+  $('btn-enlace').onclick = compartirEnlace;
+  $('reloj').onclick = ajustarReloj;
+
+  // pantalla siempre encendida mientras se lleva el partido
+  pedirWakeLock();
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') pedirWakeLock(); });
+
+  $('btn-salir').onclick = ()=>{ firebase.auth().signOut(); };
+
+  // offset del servidor + conexión
+  db.ref('.info/serverTimeOffset').on('value', s=>{ serverOffset = s.val() || 0; });
+  db.ref('.info/connected').on('value', s=>{
+    $('banner-offline').classList.toggle('ver', !s.val());
+  });
+
+  // cuántas personas están viendo (solo visible en el admin)
+  $('viendo').style.display = 'block';
+  db.ref('presencia').on('value', snap=>{
+    const v = snap.val() || {};
+    const ahoraMs = ahora();
+    let n = 0;
+    Object.values(v).forEach(x=>{ if(x && x.ts && (ahoraMs - x.ts) < 120000) n++; });
+    $('viendo').textContent = '👁 ' + n;
+  });
+
+  // escucha del partido
+  db.ref('partido').on('value', snap=>{ estado = snap.val();
+    if(estado && ((estado.rosterA && estado.rosterA.length) || (estado.rosterB && estado.rosterB.length))){
+      rosterCache = { a: estado.rosterA || [], b: estado.rosterB || [] };
+      try{ localStorage.setItem('mf_roster', JSON.stringify(rosterCache)); }catch(e){}
+    }
+    render(); },
+    e=>mostrarError('Error leyendo el partido: ' + e.message));
+
+  setInterval(tick, 500);
+} // fin de iniciarApp()
+}); // fin de DOMContentLoaded
+</script>
+</body>
+</html>

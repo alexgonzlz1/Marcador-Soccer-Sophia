@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0f1e">
+<title>Live Scoreboard ⚽</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+/* ===== Configuración de Firebase (proyecto "Score Board") ===== */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDVIJhmWGlbSqVU81jKj2Bx-I3ONGPrR_s",
+  authDomain: "score-board-4fadf.firebaseapp.com",
+  databaseURL: "https://score-board-4fadf-default-rtdb.firebaseio.com",
+  projectId: "score-board-4fadf",
+  storageBucket: "score-board-4fadf.firebasestorage.app",
+  messagingSenderId: "581558172027",
+  appId: "1:581558172027:web:4f73ba0208ac1cc7ee65de"
+};
+</script>
+<style>
+  :root{
+    --bg:#000000; --card:#101a30; --card2:#16223d;
+    --txt:#ffffff; --muted:#aab2c5; --line:#232c40;
+    --green:#2ecc71; --amber:#f5a623; --gray:#8a8a8a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:'Libre Franklin','Franklin Gothic Medium','Arial Narrow',Arial,sans-serif;}
+  body{display:flex;justify-content:center;min-height:100dvh;}
+  .wrap{width:100%;max-width:480px;min-height:100dvh;padding:16px 14px 40px;
+    display:flex;flex-direction:column;gap:14px;}
+  @keyframes pulso{0%,100%{opacity:1}50%{opacity:.25}}
+  /* ---- night stadium: solid background, scoreboard with depth ---- */
+  .fecha-pildora{display:flex;justify-content:center;padding-top:6px;}
+  .fecha-pildora span{background:linear-gradient(180deg,#182444,#101a30);border:1px solid #2c3a5c;color:#c8cfdd;
+    font-weight:700;font-size:13px;border-radius:999px;padding:8px 22px;
+    box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);}
+  /* header row: badge + title */
+  .cabecera{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:2px 4px;}
+  /* one separate card per team */
+  .equipos-sep{display:flex;gap:12px;align-items:stretch;}
+  .tarjeta-eq{flex:1;display:flex;flex-direction:column;align-items:center;
+    min-width:0;overflow:hidden;
+    background:linear-gradient(165deg,#1a2544 0%,#101a30 55%,#0c1428 100%);
+    border:1px solid rgba(255,255,255,.14);border-radius:22px;
+    box-shadow:0 24px 55px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.5),
+      inset 0 1px 0 rgba(255,255,255,.16);}
+  .eq-body{display:flex;flex-direction:column;align-items:center;gap:10px;
+    padding:18px 10px 14px;width:100%;}
+  .tarjeta-eq .nombre{font-weight:800;font-size:14px;text-align:center;line-height:1.35;color:#aab2c5;
+    max-width:100%;min-height:2.7em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;text-shadow:0 2px 5px rgba(0,0,0,.6);}
+  .tarjeta-eq .num{font-weight:900;font-size:84px;line-height:1;color:#fff;font-variant-numeric:tabular-nums;
+    text-shadow:0 3px 0 rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.55);}
+  .tarjeta-eq .logo{box-shadow:0 6px 16px rgba(0,0,0,.5), 0 0 0 2px var(--ceq,#888), 0 0 16px var(--ceq,#888);}
+  .tarjeta-eq .logo-txt{box-shadow:0 6px 16px rgba(0,0,0,.5), 0 0 0 2px var(--ceq,#888), 0 0 16px var(--ceq,#888),
+    inset 0 2px 4px rgba(255,255,255,.25);}
+  .barra-eq{height:8px;align-self:stretch;background:rgba(255,255,255,.05);}
+  .barra-eq div{height:100%;background:var(--ceq,#888);box-shadow:0 0 14px var(--ceq,#888);}
+  .insignia{display:inline-flex;align-items:center;gap:8px;font-weight:900;font-size:13px;
+    letter-spacing:2px;color:#fff;border-radius:10px;padding:8px 16px;white-space:nowrap;
+    box-shadow:0 5px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
+    text-shadow:0 1px 2px rgba(0,0,0,.4);}
+  .insignia .dot{width:10px;height:10px;border-radius:50%;background:#fff;animation:pulso 1.2s infinite;
+    box-shadow:0 0 8px #fff;}
+  .insignia.vivo{background:linear-gradient(180deg,#27c46a,#1a9448);}
+  .insignia.descanso{background:linear-gradient(180deg,#4a97ff,#2f6fd6);}
+  .insignia.pausado{background:linear-gradient(180deg,#f7b733,#dd9410);}
+  .insignia.final{background:linear-gradient(180deg,#f0565c,#c93a40);}
+  .insignia.espera{background:linear-gradient(180deg,#7d8aa0,#5b6472);}
+  .tarjeta-formato{color:#c8cfdd;font-weight:700;font-size:14px;text-align:right;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    text-shadow:0 2px 4px rgba(0,0,0,.5);}
+  /* clock strip: full width, carved-in depth */
+  .reloj-zone{display:flex;flex-direction:column;align-items:center;gap:4px;
+    margin:0 -14px;padding:10px 0;
+    background:linear-gradient(180deg,#131e38,#0c1428);
+    border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(0,0,0,.6);
+    box-shadow:0 18px 40px rgba(0,0,0,.5), inset 0 2px 12px rgba(0,0,0,.45);}
+  .logo{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#333;flex:none;
+    box-shadow:0 6px 16px rgba(0,0,0,.5), 0 0 0 2px rgba(255,255,255,.12);}
+  .logo-txt{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-weight:900;font-size:20px;color:#fff;flex:none;
+    box-shadow:0 6px 16px rgba(0,0,0,.5), inset 0 2px 4px rgba(255,255,255,.25);
+    text-shadow:0 2px 3px rgba(0,0,0,.4);}
+  .reloj{font-weight:900;font-size:64px;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1;
+    text-shadow:0 4px 0 rgba(0,0,0,.4), 0 14px 34px rgba(0,0,0,.6), 0 0 40px rgba(120,170,255,.15);}
+  /* cuenta regresiva del tiempo restante */
+  .cuenta{display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .cuenta-label{font-size:11px;font-weight:800;letter-spacing:4px;color:#8a93a8;}
+  #cuenta{font-weight:900;font-size:28px;font-variant-numeric:tabular-nums;letter-spacing:2px;
+    color:#40e0d0;line-height:1;text-shadow:0 0 18px rgba(64,224,208,.4);}
+  #cuenta.aviso{color:#f5a623;text-shadow:0 0 18px rgba(245,166,35,.5);}
+  #cuenta.extra{color:#e5484d;text-shadow:0 0 18px rgba(229,72,77,.55);}
+  .periodo{font-weight:900;font-size:15px;background:linear-gradient(180deg,#3d4a68,#2b3650);border-radius:999px;
+    padding:7px 20px;letter-spacing:2px;color:#fff;
+    box-shadow:0 6px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18);
+    text-shadow:0 1px 2px rgba(0,0,0,.5);}
+  h2{font-weight:800;font-size:16px;margin:4px 2px 0;letter-spacing:1.5px;text-transform:uppercase;
+    color:#c8cfdd;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+  .goles{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+  .gol{background:linear-gradient(180deg,#16223d,#101a30);border:1px solid rgba(255,255,255,.09);border-radius:999px;
+    padding:7px 14px;font-size:13px;border-left:6px solid var(--blue,#888);line-height:1.35;
+    width:fit-content;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:0 10px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08);}
+  .gol .min{font-weight:900;margin-right:8px;font-size:14px;}
+  .gol .det{font-size:11.5px;color:var(--muted);}
+  .vacio{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:14px;text-align:center;padding:40px 20px;}
+  .vacio .balon{font-size:72px;}
+  .vacio p{color:var(--muted);font-size:16px;line-height:1.6;margin:0;}
+  #banner-offline{display:none;background:#7a2e00;color:#ffd9a8;text-align:center;
+    font-weight:700;font-size:14px;padding:10px;border-radius:12px;}
+  #banner-offline.ver{display:block;}
+  .error{background:#3d1215;border:1px solid #e5484d;color:#ffb4b8;border-radius:12px;
+    padding:12px;font-size:14px;display:none;line-height:1.5;}
+  .error.ver{display:block;}
+  .pie{text-align:center;color:#555;font-size:12px;margin-top:auto;padding-top:20px;}
+  /* ---- day mode: light version of the night stadium ---- */
+  body.claro .fecha-pildora span{background:linear-gradient(180deg,#ffffff,#eef1f6);border-color:#d8dee9;color:#5a6a85;
+    box-shadow:0 6px 16px rgba(30,50,90,.12), inset 0 1px 0 #fff;}
+  body.claro .tarjeta-eq{background:linear-gradient(165deg,#ffffff 0%,#f2f5fa 100%);border-color:rgba(30,50,90,.16);
+    box-shadow:0 24px 50px rgba(30,50,90,.18), 0 4px 14px rgba(30,50,90,.1), inset 0 1px 0 #fff;}
+  body.claro .tarjeta-formato{color:#5a6a85;text-shadow:none;}
+  body.claro .tarjeta-eq .nombre{color:#5a6a85;text-shadow:none;}
+  body.claro .tarjeta-eq .num{color:#101a30;text-shadow:0 2px 0 rgba(255,255,255,.9), 0 10px 24px rgba(30,50,90,.22);}
+  body.claro .barra-eq{background:rgba(30,50,90,.08);}
+  body.claro .reloj-zone{background:linear-gradient(180deg,#ffffff,#e9eef6);
+    border-top-color:rgba(30,50,90,.12);border-bottom-color:rgba(30,50,90,.12);
+    box-shadow:0 14px 30px rgba(30,50,90,.12), inset 0 2px 8px rgba(30,50,90,.05);}
+  body.claro .reloj{color:#101a30;text-shadow:0 3px 0 rgba(255,255,255,.9), 0 12px 28px rgba(30,50,90,.25);}
+  body.claro #cuenta{color:#0d9488;text-shadow:none;}
+  body.claro #cuenta.aviso{color:#dd9410;text-shadow:0 0 14px rgba(245,166,35,.35);}
+  body.claro #cuenta.extra{color:#c93a40;text-shadow:0 0 14px rgba(229,72,77,.35);}
+  body.claro .cuenta-label{color:#9aa7bd;}
+  body.claro .periodo{background:linear-gradient(180deg,#e8edf5,#d9e2f1);color:#33415c;
+    box-shadow:0 6px 14px rgba(30,50,90,.14), inset 0 1px 0 #fff;text-shadow:none;}
+  body.claro h2{color:#5a6a85;text-shadow:none;}
+  body.claro .gol{background:linear-gradient(180deg,#ffffff,#f4f7fb);border-color:rgba(30,50,90,.12);
+    box-shadow:0 8px 20px rgba(30,50,90,.1), inset 0 1px 0 #fff;}
+  body.claro .logo{box-shadow:0 6px 14px rgba(30,50,90,.18), 0 0 0 2px rgba(30,50,90,.12);}
+  body.claro .logo-txt{box-shadow:0 6px 14px rgba(30,50,90,.2), inset 0 2px 4px rgba(255,255,255,.3);}
+  #flash{position:fixed;inset:0;background:#2ecc71;opacity:0;pointer-events:none;z-index:100;transition:opacity .18s;}
+  #flash.on{opacity:.45;}
+  .btn-tema{position:fixed;top:10px;right:10px;z-index:60;background:#2c2c2c;border:1px solid var(--line);
+    color:#fff;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer;
+    box-shadow:0 8px 20px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.15);}
+  /* ---- day mode base ---- */
+  body.claro{--bg:#eef1f6;--card:#ffffff;--card2:#e8edf5;--txt:#161616;--muted:#5a6a85;--line:#d8dee9;--gray:#666;}
+  body.claro .btn-tema{background:#ffffff;color:#333;border-color:#d8dee9;
+    box-shadow:0 6px 14px rgba(30,50,90,.16);}
+  body.claro .pie{color:#9aa7bd;}
+  body.claro .vacio p{color:#5a6a85;}
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<button class="btn-tema" id="btn-tema" title="Day/night mode">☀️</button>
+<div class="wrap">
+  <div id="banner-offline">⚠️ Offline — reconnecting…</div>
+  <div id="error" class="error"></div>
+
+  <div id="vista-vacia" class="vacio" style="display:none">
+    <div class="balon">⚽</div>
+    <p><b style="color:#fff">No match right now.</b><br>
+    When the admin starts one, the scoreboard will appear here automatically.</p>
+  </div>
+
+  <div id="vista-partido" style="display:none;flex-direction:column;gap:14px">
+    <div class="fecha-pildora"><span id="fecha">···</span></div>
+
+    <div class="cabecera">
+      <span class="insignia espera" id="badge"><span class="dot" style="display:none"></span><span id="badge-txt">···</span></span>
+      <span class="tarjeta-formato" id="formato">⚽ 11v11 Soccer</span>
+    </div>
+
+    <div class="equipos-sep">
+      <div class="tarjeta-eq" id="cardA">
+        <div class="eq-body">
+          <div id="logoA"></div>
+          <div class="nombre" id="nomA">–</div>
+          <div class="num" id="numA">0</div>
+        </div>
+        <div class="barra-eq"><div id="barraA"></div></div>
+      </div>
+      <div class="tarjeta-eq" id="cardB">
+        <div class="eq-body">
+          <div id="logoB"></div>
+          <div class="nombre" id="nomB">–</div>
+          <div class="num" id="numB">0</div>
+        </div>
+        <div class="barra-eq"><div id="barraB"></div></div>
+      </div>
+    </div>
+
+    <div class="reloj-zone">
+      <div class="reloj" id="reloj">00:00</div>
+      <div class="cuenta"><span class="cuenta-label">REMAINING</span><span id="cuenta">--:--</span></div>
+      <div class="periodo" id="periodo">–</div>
+    </div>
+
+    <h2>⚽ Goals</h2>
+    <div class="goles" id="goles"></div>
+  </div>
+
+  <div class="pie">Family scoreboard · auto-updates</div>
+</div>
+
+<script>
+'use strict';
+let db = null, estado = null, serverOffset = 0;
+const $ = id => document.getElementById(id);
+const ahora = () => Date.now() + serverOffset;
+
+/* Presencia: avisa al admin cuántas personas están viendo (se borra sola al salir) */
+let vid = null;
+function iniciarPresencia(){
+  try{
+    vid = 'v' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    const ref = db.ref('presencia/' + vid);
+    const latido = ()=>{ ref.set({ ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{}); };
+    latido();
+    try{ ref.onDisconnect().remove().catch(()=>{}); }catch(e){}
+    setInterval(latido, 45000);
+    window.addEventListener('pagehide', ()=>{ try{ ref.remove(); }catch(e){} });
+  }catch(e){}
+}
+/* Modo día/noche (para el sol en la cancha) */
+function aplicarTema(){
+  let claro = false;
+  try{ claro = localStorage.getItem('mf_tema') === 'claro'; }catch(e){}
+  document.body.classList.toggle('claro', claro);
+  const b = $('btn-tema'); if(b) b.textContent = claro ? '🌙' : '☀️';
+}
+/* Destello + vibración cuando cae un gol */
+let primerRender = true, golesVistos = 0;
+function destellar(color){
+  try{
+    const f = $('flash');
+    f.style.background = color || '#2ecc71';
+    f.classList.add('on');
+    setTimeout(()=>f.classList.remove('on'), 320);
+    setTimeout(()=>f.classList.add('on'), 480);
+    setTimeout(()=>f.classList.remove('on'), 800);
+    if(navigator.vibrate) navigator.vibrate([120, 60, 120]);
+  }catch(e){}
+}
+
+/* La config puede venir del archivo (para los teléfonos de la familia)
+   o del almacenamiento del navegador (si ya se configuró admin.html
+   en este mismo teléfono y ambos archivos están en el mismo dominio). */
+function leerConfig(){
+  try{
+    const g = localStorage.getItem('mf_config');
+    if(g){ const c = JSON.parse(g); if(c && c.apiKey) return c; }
+  }catch(e){}
+  const w = window.FIREBASE_CONFIG;
+  if(w && w.apiKey && w.apiKey !== 'PEGA-AQUI') return w;
+  return null;
+}
+
+function segReloj(r){
+  if(!r) return 0;
+  if(r.corriendo && r.inicioEn){
+    return Math.max(0, (r.baseSeg||0) + (ahora() - r.inicioEn)/1000);
+  }
+  return r.baseSeg || 0;
+}
+function fmt(s){
+  s = Math.floor(s);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+// big clock display: 1st half counts 0 → period length and freezes there;
+// 2nd half starts at the period length (35:00) and counts to double, then freezes.
+// Assumes the admin clock is zeroed when the 2nd half starts.
+function relojMostrado(){
+  const cfgP = (estado && estado.config) || {};
+  const periodSec = (cfgP.minutosPeriodo || 35) * 60;
+  const el = segReloj(estado && estado.reloj);
+  const p = estado && estado.reloj ? estado.reloj.periodo : null;
+  const esSegundo = (p === 2 || p === '2') && (cfgP.periodos || 2) > 1;
+  const offset = esSegundo ? periodSec : 0;
+  return fmt(offset + Math.min(el, periodSec));
+}
+/* Countdown of the time left in the period:
+   amber at ≤5 min, red with +overtime if play continues past zero */
+function actualizaCuenta(){
+  const el = $('cuenta');
+  if(!el || !estado || !estado.config) return;
+  const total = (estado.config.minutosPeriodo || 35) * 60;
+  // halftime: the secondary resets to the full period length
+  if(estado.reloj && estado.reloj.periodo === 'D'){
+    el.classList.remove('aviso','extra');
+    el.textContent = fmt(total);
+    return;
+  }
+  const resto = total - segReloj(estado.reloj);
+  el.classList.remove('aviso','extra');
+  if(resto > 300){ el.textContent = fmt(resto); }
+  else if(resto > 0){ el.textContent = fmt(resto); el.classList.add('aviso'); }
+  else { el.textContent = '+' + fmt(-resto); el.classList.add('extra'); }
+}
+function logoHTML(eq){
+  const c = estado.config[eq];
+  if(c.logo) return `<img class="logo" src="${c.logo}" alt="">`;
+  const ini = (c.nombre||'?').trim().charAt(0).toUpperCase();
+  return `<div class="logo-txt" style="background:${c.color}">${ini}</div>`;
+}
+// short player name for the goal lines: "#12 Sophia Gonzalez Scholer" -> "#12 Sophia G (speedy)"
+function nombreCorto(j){
+  if(!j) return j;
+  const m = j.match(/^(#\d+\s+)?(.+)$/);
+  const partes = (m[2]||'').trim().split(/\s+/);
+  if(partes.length < 2) return j;
+  const corto = (m[1]||'') + partes[0] + ' ' + partes[1].charAt(0).toUpperCase();
+  return /^sophia$/i.test(partes[0]) ? corto + ' (speedy)' : corto;
+}
+function render(){
+  if(!estado){
+    $('vista-vacia').style.display = 'flex';
+    $('vista-partido').style.display = 'none';
+    document.title = 'Live Scoreboard ⚽';
+    return;
+  }
+  $('vista-vacia').style.display = 'none';
+  $('vista-partido').style.display = 'flex';
+
+  const cfg = estado.config, m = estado.marcador || {a:0,b:0};
+  // match date (top pill)
+  try{
+    $('fecha').textContent = cfg.creadoEn
+      ? new Date(cfg.creadoEn).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'})
+      : '';
+  }catch(e){ $('fecha').textContent = ''; }
+  // match title (or format) on the right of the card header
+  $('formato').textContent = cfg.titulo ? cfg.titulo : '⚽ 11v11 Soccer';
+  $('logoA').innerHTML = logoHTML('a');
+  $('logoB').innerHTML = logoHTML('b');
+  $('nomA').textContent = cfg.a.nombre;
+  $('nomB').textContent = cfg.b.nombre;
+  $('numA').textContent = m.a || 0;
+  $('numB').textContent = m.b || 0;
+  document.title = `${cfg.a.nombre} ${m.a||0}–${m.b||0} ${cfg.b.nombre} · live`;
+  // highlight the team in the lead (depth + glow)
+  const sombraBase = '0 3px 0 rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.55)';
+  $('numA').style.textShadow = sombraBase; $('numB').style.textShadow = sombraBase;
+  if((m.a||0) > (m.b||0)) $('numA').style.textShadow = sombraBase + ', 0 0 34px ' + cfg.a.color;
+  else if((m.b||0) > (m.a||0)) $('numB').style.textShadow = sombraBase + ', 0 0 34px ' + cfg.b.color;
+  // team colors on each separate card (accent bar + logo ring via --ceq)
+  $('cardA').style.setProperty('--ceq', cfg.a.color);
+  $('cardB').style.setProperty('--ceq', cfg.b.color);
+  $('barraA').style.background = cfg.a.color;
+  $('barraB').style.background = cfg.b.color;
+
+  // clock: freezes at the period length (official time), never beyond
+  $('reloj').textContent = relojMostrado();
+  actualizaCuenta();
+  let perTxt = 'Single';
+  if(cfg.periodos > 1){
+    const p = estado.reloj.periodo;
+    perTxt = (p === 'D') ? 'Half-Time' : ((p == 1) ? '1st Half' : '2nd Half');
+  }
+  $('periodo').textContent = perTxt + ' · ' + cfg.minutosPeriodo + "'";
+
+  // badge
+  const badge = $('badge'), txt = $('badge-txt'), dot = badge.querySelector('.dot');
+  badge.className = 'insignia';
+  if(estado.reloj.terminado){ badge.classList.add('final'); txt.textContent = 'FULL-TIME'; dot.style.display='none'; }
+  else if(estado.reloj.corriendo){ badge.classList.add('vivo'); txt.textContent = 'LIVE'; dot.style.display=''; }
+  else if(estado.reloj.periodo === 'D'){ badge.classList.add('descanso'); txt.textContent = 'HALF-TIME'; dot.style.display='none'; }
+  else if((estado.reloj.baseSeg||0) > 0){ badge.classList.add('pausado'); txt.textContent = 'PAUSED'; dot.style.display='none'; }
+  else { badge.classList.add('espera'); txt.textContent = 'KICKOFF'; dot.style.display='none'; }
+
+  // goles
+  const goles = Object.values(estado.goles || {})
+    .sort((x,y)=> (x.minuto - y.minuto) || (x.id < y.id ? -1 : 1));
+  if(primerRender){ golesVistos = goles.length; primerRender = false; }
+  else {
+    if(goles.length > golesVistos){
+      const ultimo = goles[goles.length - 1];
+      destellar(cfg[ultimo.equipo] ? cfg[ultimo.equipo].color : '#2ecc71');
+    }
+    golesVistos = goles.length;
+  }
+  $('goles').innerHTML = goles.length ? goles.map(g=>{
+    const eq = cfg[g.equipo];
+    const icono = g.tipo === 'penal' ? '🥅' : '⚽';
+    const quien = g.jugador ? '<b>'+nombreCorto(g.jugador)+'</b>' : '<b>Goal</b>';
+    return `<div class="gol" style="border-left-color:${eq.color}">
+      <span class="min">${g.minuto}'</span>${icono} ${quien}<span class="det">${g.tipo==='penal'?' · Penalty':''}${g.asis?' · ast: '+nombreCorto(g.asis):''}</span>
+    </div>`;
+  }).join('') : '<p style="color:#8a8a8a;font-size:14px;margin:0 2px">No goals yet.</p>';
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  aplicarTema();
+  $('btn-tema').onclick = ()=>{
+    try{ localStorage.setItem('mf_tema', document.body.classList.contains('claro') ? 'oscuro' : 'claro'); }catch(e){}
+    aplicarTema();
+  };
+  const w = leerConfig();
+  if(!w){
+    const e = $('error');
+    e.textContent = 'Missing Firebase configuration on this page. Paste it into the FIREBASE_CONFIG block of this file, or open admin.html on this same phone and set it there once.';
+    e.classList.add('ver');
+    $('vista-vacia').style.display = 'flex';
+    return;
+  }
+  try{ firebase.initializeApp(w); }
+  catch(e){
+    const er = $('error'); er.textContent = 'Invalid configuration: ' + e.message; er.classList.add('ver');
+    return;
+  }
+  db = firebase.database();
+  iniciarPresencia();
+
+  db.ref('.info/serverTimeOffset').on('value', s=>{ serverOffset = s.val() || 0; });
+  db.ref('.info/connected').on('value', s=>{
+    $('banner-offline').classList.toggle('ver', !s.val());
+  });
+  db.ref('partido').on('value',
+    snap=>{ estado = snap.val(); render(); },
+    e=>{ const er=$('error'); er.textContent='Read error: '+e.message; er.classList.add('ver'); });
+
+  setInterval(()=>{ if(estado){ $('reloj').textContent = relojMostrado(); actualizaCuenta(); } }, 500);
+});
+</script>
+</body>
+</html>
