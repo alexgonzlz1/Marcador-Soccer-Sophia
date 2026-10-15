@@ -200,8 +200,9 @@ window.FIREBASE_CONFIG = {
       <input type="text" id="nombreA" placeholder="Ej. Florida Kraze" maxlength="24">
       <label style="margin-top:12px;display:block">Color del Equipo A</label>
       <div class="swatches" id="swA"></div>
-      <label style="margin-top:12px;display:block">Logo del Equipo A (PNG/JPG, opcional)</label>
+      <label style="margin-top:12px;display:block">Logo del Equipo A (elige archivo o pega la imagen)</label>
       <input type="file" id="logoA" accept="image/png,image/jpeg" style="margin-top:6px">
+      <button class="btn ghost" id="btn-pegar-logoA" type="button" style="font-size:14px;min-height:44px;margin-top:6px">📋 Pegar logo copiado</button>
       <img id="logoA-prev" class="logo-prev" alt="Logo A">
       <label style="margin-top:12px;display:block">Jugadoras · Equipo A (una por línea)</label>
       <textarea id="rosterA" placeholder="Spirit&#10;Ana&#10;Lucía"></textarea>
@@ -212,8 +213,9 @@ window.FIREBASE_CONFIG = {
       <input type="text" id="nombreB" placeholder="Ej. Rival FC" maxlength="24">
       <label style="margin-top:12px;display:block">Color del Equipo B</label>
       <div class="swatches" id="swB"></div>
-      <label style="margin-top:12px;display:block">Logo del Equipo B (PNG/JPG, opcional)</label>
+      <label style="margin-top:12px;display:block">Logo del Equipo B (elige archivo o pega la imagen)</label>
       <input type="file" id="logoB" accept="image/png,image/jpeg" style="margin-top:6px">
+      <button class="btn ghost" id="btn-pegar-logoB" type="button" style="font-size:14px;min-height:44px;margin-top:6px">📋 Pegar logo copiado</button>
       <img id="logoB-prev" class="logo-prev" alt="Logo B">
       <label style="margin-top:12px;display:block">Jugadoras · Equipo B (una por línea)</label>
       <textarea id="rosterB" placeholder="Portera&#10;Delantera 9"></textarea>
@@ -945,6 +947,35 @@ function iniciarApp(){
     if(d){ $('logoA-prev').src=d; $('logoA-prev').style.display='block'; } }).catch(err=>mostrarError(err.message));
   $('logoB').onchange = e=>procesarLogo(e.target.files[0]).then(d=>{ logoBData=d;
     if(d){ $('logoB-prev').src=d; $('logoB-prev').style.display='block'; } }).catch(err=>mostrarError(err.message));
+  // Pegar logo desde el portapapeles, sin descargar la imagen
+  function ponerLogo(eq, d){
+    if(eq==='a'){ logoAData=d; if(d){ $('logoA-prev').src=d; $('logoA-prev').style.display='block'; } }
+    else{ logoBData=d; if(d){ $('logoB-prev').src=d; $('logoB-prev').style.display='block'; } }
+  }
+  async function pegarLogo(eq){
+    try{
+      if(!navigator.clipboard || !navigator.clipboard.read) throw new Error('no-clipboard');
+      const items = await navigator.clipboard.read();
+      for(const it of items){
+        const tipo = it.types.find(t=>t.indexOf('image/')===0);
+        if(tipo){ ponerLogo(eq, await procesarLogo(await it.getType(tipo))); return; }
+      }
+      mostrarError('El portapapeles no tiene una imagen copiada');
+    }catch(e){ mostrarError('No se pudo leer el portapapeles: descarga la imagen o usa el selector de archivo'); }
+  }
+  $('btn-pegar-logoA').onclick = ()=>pegarLogo('a');
+  $('btn-pegar-logoB').onclick = ()=>pegarLogo('b');
+  // En PC también funciona Ctrl+V con el foco en la tarjeta del equipo
+  [['logoA','a'],['logoB','b']].forEach(function(par){
+    const card = $(par[0]).closest('.card');
+    if(card) card.addEventListener('paste', function(e){
+      const files = (e.clipboardData && e.clipboardData.files) ? Array.from(e.clipboardData.files) : [];
+      const f = files.find(function(x){ return x.type.indexOf('image/')===0; });
+      if(!f) return;
+      e.preventDefault();
+      procesarLogo(f).then(function(d){ ponerLogo(par[1], d); }).catch(function(err){ mostrarError(err.message); });
+    });
+  });
   document.querySelectorAll('#seg-min button').forEach(b=>b.onclick=()=>{
     minSel = +b.dataset.v; $('min-custom').value='';
     document.querySelectorAll('#seg-min button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); });
