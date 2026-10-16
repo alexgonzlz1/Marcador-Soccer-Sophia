@@ -706,7 +706,7 @@ function registrarGol(eq, jugador, tipo, asis){
   explosionColores();
   const minuto = Math.floor(segReloj(estado.reloj)/60);
   const key = db.ref('partido/goles').push().key;
-  const gol = { id: key, equipo: eq, minuto, jugador: jugador || '', tipo: tipo || 'jugada', asis: asis || '' };
+  const gol = { id: key, equipo: eq, minuto, jugador: jugador || '', tipo: tipo || 'jugada', asis: asis || '', periodo: (estado.reloj && estado.reloj.periodo) || null };
   const up = {};
   up['partido/goles/' + key] = gol;
   up['partido/marcador/' + eq] = (estado.marcador[eq]||0) + 1;
@@ -990,23 +990,26 @@ async function dibujarInvitacion(){
     x.fillText(String(cfg.titulo).slice(0, 44), cx, 232);
   }
 
-  // logos de los dos equipos
-  const drawLogo = (img, lx)=>{
-    if(!img || !img.width) return;
-    const r = Math.min(1, 340 / Math.max(img.width, img.height));
-    const w = img.width * r, h = img.height * r;
-    try{ x.drawImage(img, lx - w/2, 430 - h/2, w, h); }catch(e){}
+  // logos de los dos equipos (con respaldo si no hay logo)
+  const drawLogo = (img, eqKey, lx)=>{
+    const cfgEq = cfg[eqKey];
+    if(img && img.width){
+      const r = Math.min(1, 340 / Math.max(img.width, img.height));
+      const w = img.width * r, h = img.height * r;
+      try{ x.drawImage(img, lx - w/2, 430 - h/2, w, h); }catch(e){}
+      return;
+    }
+    x.fillStyle = cfgEq.color || '#888888';
+    x.beginPath(); x.arc(lx, 430, 110, 0, 7); x.fill();
+    x.fillStyle = '#ffffff'; x.font = '900 130px Arial';
+    x.fillText((cfgEq.nombre || '?').trim().charAt(0).toUpperCase(), lx, 478);
   };
-  drawLogo(logos[0], W*0.33);
-  drawLogo(logos[1], W*0.67);
+  drawLogo(logos[0], 'a', W*0.33);
+  drawLogo(logos[1], 'b', W*0.67);
 
-  // insignia VS entre los logos
-  x.fillStyle = '#0a1628';
-  x.beginPath(); x.arc(cx, 430, 74, 0, 7); x.fill();
-  x.lineWidth = 5; x.strokeStyle = '#ffd166';
-  x.beginPath(); x.arc(cx, 430, 74, 0, 7); x.stroke();
-  x.fillStyle = '#ffd166'; x.font = '900 62px Arial';
-  x.fillText('VS', cx, 452);
+  // VS solo, sin círculo
+  x.fillStyle = '#ffd166'; x.font = '900 76px Arial';
+  x.fillText('VS', cx, 458);
 
   x.fillStyle = '#f0f4fa'; x.font = '800 40px Arial';
   dibujarNombre(x, cfg.a.nombre, W*0.33, 610, 400);
@@ -1026,10 +1029,6 @@ async function dibujarInvitacion(){
   };
   tituloInv('FOLLOW THE', 790);
   tituloInv('LIVE GAME HERE', 900);
-
-  const link = enlacePublico().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  x.font = '700 34px Arial'; x.fillStyle = '#9fb3d9';
-  x.fillText(link, cx, 1000);
   return c;
 }
 async function compartirInvitacion(){
@@ -1352,4 +1351,4 @@ function iniciarApp(){
 </script>
   <script src="Liga.js"></script>
 </body>
-      </html>
+</html>
