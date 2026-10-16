@@ -1052,10 +1052,10 @@ async function dibujarInvitacion(){
   dibujarNombre(x, cfg.a.nombre, W*0.33, 610, 400);
   dibujarNombre(x, cfg.b.nombre, W*0.67, 610, 400);
 
-  // FOLLOW THE LIVE GAME HERE con brillo
+  // SEE THE CLOCK AND SCORE LIVE con brillo
   const tituloInv = (txt, yy)=>{
     x.save();
-    x.font = '900 96px Arial';
+    x.font = '900 88px Arial';
     x.lineWidth = 8; x.strokeStyle = '#0a1a33';
     x.shadowColor = '#7ec8f0'; x.shadowBlur = 45;
     x.strokeText(txt, cx, yy);
@@ -1064,8 +1064,8 @@ async function dibujarInvitacion(){
     x.fillText(txt, cx, yy);
     x.restore();
   };
-  tituloInv('FOLLOW THE', 790);
-  tituloInv('LIVE GAME HERE', 900);
+  tituloInv('SEE THE CLOCK', 800);
+  tituloInv('AND SCORE LIVE', 895);
   return c;
 }
 async function compartirInvitacion(){
