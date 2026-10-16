@@ -710,7 +710,51 @@ function dibujarNombre(x, nombre, cx, y, maxW){
   if(lin) lineas.push(lin);
   lineas.slice(0, 3).forEach((l, i)=> x.fillText(l, cx, y + i * 56));
 }
-function dibujarResultado(){
+function cargarLogoSeguro(url){
+  return new Promise(res=>{
+    let listo = false;
+    const done = v=>{ if(!listo){ listo = true; res(v); } };
+    if(!url) return done(null);
+    try{
+      const img = new Image();
+      if(/^https?:\/\//i.test(url)) img.crossOrigin = 'anonymous';
+      img.onload = ()=>done(img);
+      img.onerror = ()=>done(null);
+      img.src = url;
+      setTimeout(()=>done(null), 5000);
+    }catch(e){ done(null); }
+  });
+}
+function fondoEstadio(x, W, H){
+  let g = x.createLinearGradient(0, 0, 0, H*0.75);
+  g.addColorStop(0, '#04060f'); g.addColorStop(.5, '#0a1226'); g.addColorStop(1, '#060a16');
+  x.fillStyle = g; x.fillRect(0, 0, W, H*0.78);
+  [[140,330],[430,440],[650,440],[940,330]].forEach(pt=>{
+    const fx = pt[0], fy = pt[1], r = 260;
+    const rg = x.createRadialGradient(fx, fy, 10, fx, fy, r);
+    rg.addColorStop(0, 'rgba(255,240,210,.95)');
+    rg.addColorStop(.25, 'rgba(255,225,170,.45)');
+    rg.addColorStop(1, 'rgba(255,220,160,0)');
+    x.fillStyle = rg; x.fillRect(fx-r, fy-r, r*2, r*2);
+    x.fillStyle = '#fff7e8';
+    x.beginPath(); x.arc(fx, fy, 26, 0, 7); x.fill();
+  });
+  x.fillStyle = '#0a0e1a'; x.fillRect(0, H*0.52, W, H*0.20);
+  x.fillStyle = 'rgba(255,255,255,.05)';
+  for(let yy = H*0.53; yy < H*0.70; yy += 14) x.fillRect(0, yy, W, 2);
+  g = x.createLinearGradient(0, H*0.70, 0, H);
+  g.addColorStop(0, '#0e2f1c'); g.addColorStop(1, '#050d08');
+  x.fillStyle = g; x.fillRect(0, H*0.70, W, H*0.30);
+  x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 4;
+  x.beginPath(); x.arc(W/2, H*0.97, 180, Math.PI, 0); x.stroke();
+  g = x.createLinearGradient(0, 0, 0, 480);
+  g.addColorStop(0, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, 480);
+  g = x.createLinearGradient(0, H-320, 0, H);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.7)');
+  x.fillStyle = g; x.fillRect(0, H-320, W, 320);
+}
+async function dibujarResultado(){
   const W = 1080, H = 1350;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const x = c.getContext('2d');
@@ -720,49 +764,102 @@ function dibujarResultado(){
   let fecha = '';
   try{ fecha = cfg.creadoEn ? new Date(cfg.creadoEn).toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}) : ''; }catch(e){}
   const cx = W / 2;
-
-  if(gana){
-    const g = x.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#0b1e3a'); g.addColorStop(.55, '#0b1220'); g.addColorStop(1, '#0e2f1c');
-    x.fillStyle = g; x.fillRect(0, 0, W, H);
-    const cols = ['#ff4757','#ffa502','#2ed573','#1e90ff','#eccc68','#f368e0','#ffffff'];
-    for(let i = 0; i < 220; i++){
-      x.fillStyle = cols[i % cols.length];
-      x.globalAlpha = .5 + Math.random() * .5;
-      const s = 6 + Math.random() * 14;
-      x.save(); x.translate(Math.random()*W, Math.random()*H); x.rotate(Math.random()*Math.PI);
-      x.fillRect(-s/2, -s/4, s, s/2); x.restore();
-    }
-    x.globalAlpha = 1;
-  } else {
-    x.fillStyle = '#141414'; x.fillRect(0, 0, W, H);
-  }
-
   x.textAlign = 'center';
-  x.font = '900 84px Arial';
-  if(gana){ x.fillStyle = '#fff'; x.fillText('🏆 VICTORY!', cx, 200); }
-  else { x.fillStyle = '#b9b9b9'; x.fillText('FULL TIME', cx, 200); }
 
-  if(cfg.titulo){
-    x.font = '700 44px Arial'; x.fillStyle = '#c8cfdd';
-    x.fillText(String(cfg.titulo).slice(0, 40), cx, 285);
+  if(!gana){
+    x.fillStyle = '#141414'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#8a8a8a'; x.font = '800 76px Arial';
+    x.fillText('FULL TIME', cx, 200);
+    x.fillStyle = '#3a3a3a'; x.fillRect(cx-200, 250, 400, 4);
+    if(cfg.titulo){
+      x.font = '700 38px Arial'; x.fillStyle = '#787878';
+      x.fillText(String(cfg.titulo).slice(0, 40), cx, 330);
+    }
+    x.fillStyle = '#c8c8c8'; x.font = '800 50px Arial';
+    dibujarNombre(x, cfg.a.nombre, W*0.25, 470, W*0.42);
+    dibujarNombre(x, cfg.b.nombre, W*0.75, 470, W*0.42);
+    x.fillStyle = '#ebebeb'; x.font = '900 220px Arial';
+    x.fillText(ga + ' – ' + gb, cx, 780);
+    if(fecha){ x.font = '700 42px Arial'; x.fillStyle = '#6e6e6e'; x.fillText(fecha, cx, H-160); }
+    x.font = '700 38px Arial'; x.fillStyle = '#5a5a5a';
+    x.fillText('Family scoreboard', cx, H-90);
+    return c;
   }
 
-  const yEq = 450;
-  x.fillStyle = '#fff'; x.font = '800 46px Arial';
-  dibujarNombre(x, cfg.a.nombre, W * 0.25, yEq, W * 0.42);
-  dibujarNombre(x, cfg.b.nombre, W * 0.75, yEq, W * 0.42);
-  x.font = '900 300px Arial';
-  x.fillText(ga + ' – ' + gb, cx, yEq + 330);
+  fondoEstadio(x, W, H);
+  const logos = await Promise.all([cargarLogoSeguro(cfg.a.logo), cargarLogoSeguro(cfg.b.logo)]);
 
-  if(fecha){ x.font = '700 40px Arial'; x.fillStyle = '#c8cfdd'; x.fillText(fecha, cx, H - 160); }
-  x.font = '700 36px Arial'; x.fillStyle = '#8a8a8a';
-  x.fillText('Family scoreboard ⚽', cx, H - 90);
+  const cols = ['#ffd166','#ffffff','#7ec8f0','#ef476f','#06d6a0'];
+  for(let i = 0; i < 130; i++){
+    x.fillStyle = cols[i % cols.length];
+    x.globalAlpha = .5 + Math.random() * .5;
+    const s = 8 + Math.random() * 12;
+    x.save(); x.translate(Math.random()*W, Math.random()*H); x.rotate(Math.random()*Math.PI);
+    x.fillRect(-s/2, -s/4, s, s/2); x.restore();
+  }
+  x.globalAlpha = 1;
+
+  const titulo = (txt, yy)=>{
+    x.save();
+    x.font = '900 150px Arial';
+    x.shadowColor = 'rgba(150,220,255,.95)'; x.shadowBlur = 55;
+    x.fillStyle = '#ffffff';
+    x.fillText(txt, cx, yy); x.fillText(txt, cx, yy);
+    x.restore();
+    x.font = '900 150px Arial';
+    x.lineWidth = 3; x.strokeStyle = 'rgba(10,20,40,.9)';
+    x.strokeText(txt, cx, yy);
+    x.fillStyle = '#ffffff'; x.fillText(txt, cx, yy);
+  };
+  titulo('FINAL', 190); titulo('SCORE', 340);
+  if(cfg.titulo){
+    x.font = '700 38px Arial'; x.fillStyle = '#e6ebf5';
+    x.fillText(String(cfg.titulo).slice(0, 40), cx, 415);
+  }
+
+  const tarjeta = (tCx, eq, gol, logoImg)=>{
+    const cw = 440, ch = 640, x0 = tCx - cw/2, top = 480;
+    x.save();
+    x.shadowColor = eq.color || '#888888'; x.shadowBlur = 45;
+    x.fillStyle = 'rgba(8,16,34,.93)';
+    x.beginPath();
+    if(x.roundRect) x.roundRect(x0, top, cw, ch, 36); else x.rect(x0, top, cw, ch);
+    x.fill(); x.restore();
+    x.strokeStyle = 'rgba(255,255,255,.25)'; x.lineWidth = 2;
+    x.beginPath();
+    if(x.roundRect) x.roundRect(x0, top, cw, ch, 36); else x.rect(x0, top, cw, ch);
+    x.stroke();
+    if(logoImg && logoImg.width){
+      const k = Math.min(1, 190/Math.max(logoImg.width, logoImg.height));
+      const lw = logoImg.width*k, lh = logoImg.height*k;
+      try{ x.drawImage(logoImg, tCx-lw/2, top+45, lw, lh); }catch(e){}
+    }
+    x.fillStyle = '#f0f4fa'; x.font = '800 40px Arial';
+    dibujarNombre(x, eq.nombre, tCx, top+300, 380);
+    x.font = '900 220px Arial';
+    x.lineWidth = 10; x.strokeStyle = '#000000';
+    const gt = String(gol);
+    x.strokeText(gt, tCx, top+595);
+    x.fillStyle = '#ffffff'; x.fillText(gt, tCx, top+595);
+    x.fillStyle = eq.color || '#888888';
+    x.beginPath();
+    if(x.roundRect) x.roundRect(x0+30, top+ch-36, cw-60, 18, 9); else x.rect(x0+30, top+ch-36, cw-60, 18);
+    x.fill();
+  };
+  tarjeta(W*0.27, cfg.a, ga, logos[0]);
+  tarjeta(W*0.73, cfg.b, gb, logos[1]);
+
+  x.font = '700 36px Arial'; x.fillStyle = '#d2dae6';
+  if(fecha) x.fillText(fecha, cx, H-190);
+  x.font = '700 34px Arial'; x.fillStyle = '#9aa3b5';
+  x.fillText('Family scoreboard', cx, H-135);
   return c;
 }
+
 async function compartirImagen(){
   try{
-    const blob = await new Promise(r=>dibujarResultado().toBlob(r, 'image/jpeg', 0.92));
+    const cvFin = await dibujarResultado();
+    const blob = await new Promise(r=>cvFin.toBlob(r, 'image/jpeg', 0.92));
     if(!blob) throw new Error('vacío');
     const file = new File([blob], 'resultado-final.jpg', {type:'image/jpeg'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
@@ -834,10 +931,10 @@ function renderFinal(){
   $('final-goles').innerHTML = gl.length ? gl.map(golHTML).join('')
     : '<p class="nota">Sin goles.</p>';
   // vista previa de la imagen del resultado (JPG para compartir)
-  try{
-    $('final-img').src = dibujarResultado().toDataURL('image/jpeg', 0.9);
+  dibujarResultado().then(cv=>{
+    $('final-img').src = cv.toDataURL('image/jpeg', 0.9);
     $('final-img').style.display = 'block';
-  }catch(e){ /* sin vista previa */ }
+  }).catch(e=>{ /* sin vista previa */ });
 }
 function compartir(){
   const a = estado.config.a, b = estado.config.b;
