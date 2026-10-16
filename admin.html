@@ -967,6 +967,43 @@ async function compartirImagen(){
   }catch(e){ mostrarError('No se pudo generar la imagen: ' + e.message); }
 }
 
+/* Quita el fondo blanco EXTERIOR de los logos que vienen en caja (inundación desde
+   los bordes: los blancos internos del diseño no se tocan) */
+function logoSinFondo(img){
+  try{
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const cx2 = c.getContext('2d');
+    cx2.drawImage(img, 0, 0);
+    const W = c.width, H = c.height;
+    const esBlanco = (px, py)=>{
+      const d = cx2.getImageData(px, py, 1, 1).data;
+      return d[3] > 200 && d[0] > 225 && d[1] > 225 && d[2] > 225;
+    };
+    if(!(esBlanco(0,0) && esBlanco(W-1,0) && esBlanco(0,H-1) && esBlanco(W-1,H-1))) return c;
+    const d = cx2.getImageData(0, 0, W, H), p = d.data;
+    const visitado = new Uint8Array(W * H);
+    const esBlancoPx = (i)=> p[i] > 225 && p[i+1] > 225 && p[i+2] > 225 && p[i+3] > 200;
+    const pila = [];
+    for(let xx = 0; xx < W; xx++){ pila.push(xx); pila.push((H-1)*W + xx); }
+    for(let yy = 0; yy < H; yy++){ pila.push(yy*W); pila.push(yy*W + W - 1); }
+    while(pila.length){
+      const idx = pila.pop();
+      if(visitado[idx]) continue;
+      visitado[idx] = 1;
+      const i4 = idx * 4;
+      if(!esBlancoPx(i4)) continue;
+      p[i4+3] = 0;
+      const px = idx % W, py = (idx / W) | 0;
+      if(px > 0) pila.push(idx - 1);
+      if(px < W-1) pila.push(idx + 1);
+      if(py > 0) pila.push(idx - W);
+      if(py < H-1) pila.push(idx + W);
+    }
+    cx2.putImageData(d, 0, 0);
+    return c;
+  }catch(e){ return img; }
+}
 /* Tarjeta de invitación para WhatsApp: logos de los dos equipos + texto en inglés */
 async function dibujarInvitacion(){
   const W = 1080, H = 1080;
@@ -976,7 +1013,8 @@ async function dibujarInvitacion(){
   x.textAlign = 'center';
 
   fondoEstadio(x, W, H);
-  const logos = await Promise.all([cargarLogoSeguro(cfg.a.logo), cargarLogoSeguro(cfg.b.logo)]);
+  const logos = (await Promise.all([cargarLogoSeguro(cfg.a.logo), cargarLogoSeguro(cfg.b.logo)]))
+    .map(img => img ? logoSinFondo(img) : null);
 
   // pastilla LIVE
   const pw = 280, ph = 88, px = cx - pw/2, py = 66;
@@ -994,8 +1032,7 @@ async function dibujarInvitacion(){
   const drawLogo = (img, eqKey, lx)=>{
     const cfgEq = cfg[eqKey];
     if(img && img.width){
-      const r = Math.min(1, 340 / Math.max(img.width, img.height));
-      const w = img.width * r, h = img.height * r;
+      const h = 300, w = img.width * (h / img.height); // misma altura para los dos
       try{ x.drawImage(img, lx - w/2, 430 - h/2, w, h); }catch(e){}
       return;
     }
