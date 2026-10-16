@@ -289,6 +289,7 @@ window.FIREBASE_CONFIG = {
     </div>
 
     <button class="btn" id="btn-enlace" style="min-height:56px;font-size:16px;background:#3a3a3a">🔗 Compartir enlace público</button>
+    <button class="btn" id="btn-invitacion" style="min-height:56px;font-size:16px;background:#1d3a26">💌 Invitación para WhatsApp</button>
 
     <button class="btn ghost" id="btn-salir" style="font-size:14px;min-height:48px">Cerrar sesión de administrador</button>
     <button class="btn ghost" id="btn-home" style="font-size:14px;min-height:48px">⌂ Inicio · crear partido nuevo</button>
@@ -966,6 +967,97 @@ async function compartirImagen(){
   }catch(e){ mostrarError('No se pudo generar la imagen: ' + e.message); }
 }
 
+/* Tarjeta de invitación para WhatsApp: logos de los dos equipos + texto en inglés */
+async function dibujarInvitacion(){
+  const W = 1080, H = 1080;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const cfg = estado.config, cx = W / 2;
+  x.textAlign = 'center';
+
+  fondoEstadio(x, W, H);
+  const logos = await Promise.all([cargarLogoSeguro(cfg.a.logo), cargarLogoSeguro(cfg.b.logo)]);
+
+  // pastilla LIVE
+  const pw = 280, ph = 88, px = cx - pw/2, py = 66;
+  x.fillStyle = '#22c55e';
+  x.beginPath(); x.roundRect(px, py, pw, ph, 44); x.fill();
+  x.fillStyle = '#ffffff'; x.font = '900 46px Arial';
+  x.fillText('● LIVE', cx, py + 60);
+
+  if(cfg.titulo){
+    x.font = '700 38px Arial'; x.fillStyle = '#e6ebf5';
+    x.fillText(String(cfg.titulo).slice(0, 44), cx, 232);
+  }
+
+  // logos de los dos equipos
+  const drawLogo = (img, lx)=>{
+    if(!img || !img.width) return;
+    const r = Math.min(1, 340 / Math.max(img.width, img.height));
+    const w = img.width * r, h = img.height * r;
+    try{ x.drawImage(img, lx - w/2, 430 - h/2, w, h); }catch(e){}
+  };
+  drawLogo(logos[0], W*0.33);
+  drawLogo(logos[1], W*0.67);
+
+  // insignia VS entre los logos
+  x.fillStyle = '#0a1628';
+  x.beginPath(); x.arc(cx, 430, 74, 0, 7); x.fill();
+  x.lineWidth = 5; x.strokeStyle = '#ffd166';
+  x.beginPath(); x.arc(cx, 430, 74, 0, 7); x.stroke();
+  x.fillStyle = '#ffd166'; x.font = '900 62px Arial';
+  x.fillText('VS', cx, 452);
+
+  x.fillStyle = '#f0f4fa'; x.font = '800 40px Arial';
+  dibujarNombre(x, cfg.a.nombre, W*0.33, 610, 400);
+  dibujarNombre(x, cfg.b.nombre, W*0.67, 610, 400);
+
+  // FOLLOW THE LIVE GAME HERE con brillo
+  const tituloInv = (txt, yy)=>{
+    x.save();
+    x.font = '900 96px Arial';
+    x.lineWidth = 8; x.strokeStyle = '#0a1a33';
+    x.shadowColor = '#7ec8f0'; x.shadowBlur = 45;
+    x.strokeText(txt, cx, yy);
+    x.shadowBlur = 16;
+    x.fillStyle = '#ffffff';
+    x.fillText(txt, cx, yy);
+    x.restore();
+  };
+  tituloInv('FOLLOW THE', 790);
+  tituloInv('LIVE GAME HERE', 900);
+
+  const link = enlacePublico().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  x.font = '700 34px Arial'; x.fillStyle = '#9fb3d9';
+  x.fillText(link, cx, 1000);
+  return c;
+}
+async function compartirInvitacion(){
+  try{
+    const link = enlacePublico();
+    const cv = await dibujarInvitacion();
+    const blob = await new Promise(r=>cv.toBlob(r, 'image/png'));
+    if(!blob) throw new Error('vacío');
+    const texto = 'Follow the live game here:\n' + link;
+    const file = new File([blob], 'invitacion-partido.png', {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'Live Soccer ⚽', text: texto});
+    } else if(navigator.share){
+      await navigator.share({title:'Live Soccer ⚽', text: texto, url: link});
+    } else if(navigator.clipboard){
+      try{ await navigator.clipboard.writeText(link); }catch(e){}
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = 'invitacion-partido.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u), 8000);
+      alert('Imagen descargada y enlace copiado.');
+    } else {
+      alert(texto);
+    }
+  }catch(e){ mostrarError('No se pudo generar la invitación: ' + e.message); }
+}
+
 /* ================= RENDER ================= */
 function listaGoles(){
   return Object.values(estado.goles || {}).sort((x,y)=> (x.minuto - y.minuto) || (x.id < y.id ? -1 : 1));
@@ -1220,6 +1312,7 @@ function iniciarApp(){
     }
   };
   $('btn-enlace').onclick = compartirEnlace;
+  $('btn-invitacion').onclick = compartirInvitacion;
   $('reloj').onclick = ajustarReloj;
 
   // pantalla siempre encendida mientras se lleva el partido
@@ -1259,4 +1352,4 @@ function iniciarApp(){
 </script>
   <script src="Liga.js"></script>
 </body>
-        </html>
+      </html>
