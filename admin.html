@@ -811,14 +811,14 @@ async function dibujarResultado(){
     x.strokeText(txt, cx, yy);
     x.fillStyle = '#ffffff'; x.fillText(txt, cx, yy);
   };
-  titulo('FINAL', 190); titulo('SCORE', 340);
+  titulo('FINAL', 160); titulo('SCORE', 300);
   if(cfg.titulo){
     x.font = '700 38px Arial'; x.fillStyle = '#e6ebf5';
-    x.fillText(String(cfg.titulo).slice(0, 40), cx, 415);
+    x.fillText(String(cfg.titulo).slice(0, 40), cx, 368);
   }
 
   const tarjeta = (tCx, eq, gol, logoImg)=>{
-    const cw = 440, ch = 640, x0 = tCx - cw/2, top = 480;
+    const cw = 440, ch = 600, x0 = tCx - cw/2, top = 420;
     x.save();
     x.shadowColor = eq.color || '#888888'; x.shadowBlur = 45;
     x.fillStyle = 'rgba(8,16,34,.93)';
@@ -832,15 +832,17 @@ async function dibujarResultado(){
     if(logoImg && logoImg.width){
       const k = Math.min(1, 190/Math.max(logoImg.width, logoImg.height));
       const lw = logoImg.width*k, lh = logoImg.height*k;
-      try{ x.drawImage(logoImg, tCx-lw/2, top+45, lw, lh); }catch(e){}
+      try{ x.drawImage(logoImg, tCx-lw/2, top+35, lw, lh); }catch(e){}
     }
     x.fillStyle = '#f0f4fa'; x.font = '800 40px Arial';
-    dibujarNombre(x, eq.nombre, tCx, top+300, 380);
+    x.textAlign = 'left';
+    dibujarNombre(x, eq.nombre, x0+40, top+250, 360);
+    x.textAlign = 'center';
     x.font = '900 220px Arial';
     x.lineWidth = 10; x.strokeStyle = '#000000';
     const gt = String(gol);
-    x.strokeText(gt, tCx, top+595);
-    x.fillStyle = '#ffffff'; x.fillText(gt, tCx, top+595);
+    x.strokeText(gt, tCx, top+515);
+    x.fillStyle = '#ffffff'; x.fillText(gt, tCx, top+515);
     x.fillStyle = eq.color || '#888888';
     x.beginPath();
     if(x.roundRect) x.roundRect(x0+30, top+ch-36, cw-60, 18, 9); else x.rect(x0+30, top+ch-36, cw-60, 18);
@@ -849,10 +851,27 @@ async function dibujarResultado(){
   tarjeta(W*0.27, cfg.a, ga, logos[0]);
   tarjeta(W*0.73, cfg.b, gb, logos[1]);
 
+  // Goleadores de FKK (alineados a la izquierda)
+  const golesA = listaGoles().filter(g=>g.equipo==='a').slice(0, 4);
+  if(golesA.length){
+    x.font = '800 38px Arial'; x.fillStyle = '#ffd166';
+    x.fillText('⚽ FKK GOALS', cx, 1058);
+    x.font = '700 34px Arial'; x.fillStyle = '#f0f4fa';
+    const lineas = golesA.map(g=>{
+      const pen = g.tipo === 'penal' ? ' (pen)' : '';
+      const as = g.asis ? ' · asis: ' + g.asis : '';
+      return g.minuto + "' " + (g.jugador || 'Gol') + pen + as;
+    });
+    const maxW = Math.max.apply(null, lineas.map(l=>x.measureText(l).width));
+    x.textAlign = 'left';
+    lineas.forEach((l, i)=>{ x.fillText(l, cx - maxW/2, 1096 + i*34); });
+    x.textAlign = 'center';
+  }
+
   x.font = '700 36px Arial'; x.fillStyle = '#d2dae6';
-  if(fecha) x.fillText(fecha, cx, H-190);
+  if(fecha) x.fillText(fecha, cx, 1252);
   x.font = '700 34px Arial'; x.fillStyle = '#9aa3b5';
-  x.fillText('Family scoreboard', cx, H-135);
+  x.fillText('Family scoreboard', cx, 1300);
   return c;
 }
 
@@ -1161,4 +1180,4 @@ function iniciarApp(){
 </script>
   <script src="Liga.js"></script>
 </body>
-</html>
+        </html>
