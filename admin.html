@@ -684,9 +684,10 @@ function renderModalGoles(){
     const asis = g.asis ? ` <span class="tipo">· asis: ${g.asis}</span>` : '';
     const tipo = g.tipo === 'penal' ? ' <span class="tipo">(penal)</span>' : '';
     const col = (estado.config[g.equipo] || {}).color || '#888';
+    const palabraGol = g.jugador ? 'Gol ' : '';
     return `<div class="gol-item${sel}" data-k="${g.id}" style="border-left-color:${col};cursor:pointer">` +
       `<button class="gol-x" data-x="${g.id}" title="Borrar">✕</button>` +
-      `<span class="min">${g.minuto}'</span>⚽ <b>${g.jugador || 'Gol'}</b>${tipo}${asis}</div>`;
+      `<span class="min">${g.minuto}'</span>⚽ ${palabraGol}<b>${g.jugador || 'Gol'}</b>${tipo}${asis}</div>`;
   }).join('');
   box.querySelectorAll('.gol-item').forEach(el=>{
     el.onclick = e=>{
@@ -975,8 +976,9 @@ function golHTML(g){
   const tipo = g.tipo === 'penal' ? ' <span class="tipo">(penal)</span>' : '';
   const asis = g.asis ? ` <span class="tipo">· asis: ${g.asis}</span>` : '';
   const quien = g.jugador ? `<b>${g.jugador}</b>` : '<b>Gol</b>';
+  const palabraGol = g.jugador ? 'Gol ' : '';
   return `<div class="gol-item" style="border-left-color:${eq.color}">
-    <span class="min">${g.minuto}'</span>${icono} ${quien}${tipo}${asis}</div>`;
+    <span class="min">${g.minuto}'</span>${icono} ${palabraGol}${quien}${tipo}${asis}</div>`;
 }
 function render(){
   if(!estado){ mostrar('pantalla-crear'); return; }
@@ -1257,4 +1259,4 @@ function iniciarApp(){
 </script>
   <script src="Liga.js"></script>
 </body>
-      </html>
+</html>
