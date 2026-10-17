@@ -146,6 +146,7 @@ window.FIREBASE_CONFIG = {
 </head>
 <body>
 <div id="viendo" class="viendo" style="display:none">👁 0</div>
+<div id="clics" class="viendo" style="display:none;right:110px" title="Personas que abrieron el enlace">👆 0</div>
 <div class="wrap">
 
   <div id="banner-offline">⚠️ Sin conexión — reconectando…</div>
@@ -1507,6 +1508,12 @@ function iniciarApp(){
     let n = 0;
     Object.values(v).forEach(x=>{ if(x && x.ts && (ahoraMs - x.ts) < 120000) n++; });
     $('viendo').textContent = '👁 ' + n;
+  });
+
+  // cuántas personas abrieron el enlace (únicas por navegador)
+  $('clics').style.display = 'block';
+  db.ref('partido/visitas').on('value', snap=>{
+    $('clics').textContent = '👆 ' + snap.numChildren();
   });
 
   // escucha del partido
