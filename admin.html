@@ -1164,26 +1164,57 @@ async function cargarTemporada(){
     ? `<b>ECNL Girls Southeast · GU13</b><br><span style="font-size:20px">Posición: <b style="color:#ffd166">${st.posicion}.º</b> · ${st.puntos} pts · ${st.pj} PJ</span>`
     : '<span style="color:#8a8a8a">Posición en la liga: —</span>';
   // top 3 goleadoras
-  const orden = Object.values(jug).sort((a,b)=> ((b.goles||0)-(a.goles||0)) || ((b.asis||0)-(a.asis||0)));
+  const pares = Object.entries(jug);
+  const orden = pares.sort((a,b)=> ((b[1].goles||0)-(a[1].goles||0)) || ((b[1].asis||0)-(a[1].asis||0)));
   if(topBox){
     topBox.innerHTML = orden.length
-      ? '<div style="color:#8a8a8a;font-size:14px;margin-bottom:6px">GOLEADORAS</div>' + orden.slice(0,3).map((j,i)=>
-          `<div style="display:flex;justify-content:space-between;padding:6px 0;${i<2?'border-bottom:1px solid var(--line);':''}">` +
+      ? '<div style="color:#8a8a8a;font-size:14px;margin-bottom:6px">GOLEADORAS</div>' + orden.slice(0,3).map(([k,j])=>
+          `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);">` +
           `<span>${j.nombre||''}</span><span><b>${j.goles||0}</b> goles · ${j.asis||0} asist.</span></div>`
         ).join('')
       : '<span style="color:#8a8a8a">Sin goles registrados todavía.</span>';
   }
-  // tabla completa (oculta)
+  // tabla completa (oculta) con edición y reinicio
   if(tabBox){
     tabBox.innerHTML = orden.length
-      ? orden.map((j,i)=>
+      ? orden.map(([k,j],i)=>
           `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;margin-bottom:8px;` +
           `background:${i%2?'#101828':'#16213a'};${i===0?'border:2px solid #ffd166;':''}">` +
           `<span><b style="color:#8a8a8a">${i+1}.</b> ${j.nombre||''}</span>` +
-          `<span><b>${j.goles||0}</b> <span style="color:#8a8a8a">goles</span> · <b>${j.asis||0}</b> <span style="color:#8a8a8a">asist.</span></span></div>`
-        ).join('')
+          `<span><b>${j.goles||0}</b> <span style="color:#8a8a8a">goles</span> · <b>${j.asis||0}</b> <span style="color:#8a8a8a">asist.</span> ` +
+          `<button class="btn ghost" data-edit="${k}" type="button" style="min-height:36px;padding:4px 10px;margin-left:6px" title="Editar">✏️</button></span></div>`
+        ).join('') +
+        `<button class="btn ghost" id="btn-reset-stats" type="button" style="font-size:14px;min-height:44px;margin-top:8px;width:100%">🗑 Reiniciar tabla (poner en cero)</button>`
       : '<span style="color:#8a8a8a">Sin datos todavía.</span>';
+    tabBox.querySelectorAll('[data-edit]').forEach(b=>{
+      b.onclick = e=>{ e.stopPropagation(); editarJugadora(b.getAttribute('data-edit')); };
+    });
+    const br = $('btn-reset-stats');
+    if(br) br.onclick = reiniciarStats;
   }
+}
+/* Editar goles/asistencias de una jugadora manualmente */
+async function editarJugadora(key){
+  try{
+    const j = (cacheStats[key] || {});
+    const g = prompt('Goles de ' + (j.nombre || ''), j.goles || 0);
+    if(g === null) return;
+    const a = prompt('Asistencias de ' + (j.nombre || ''), j.asis || 0);
+    if(a === null) return;
+    await db.ref('stats/jugadoras/' + key).update({
+      goles: Math.max(0, parseInt(g) || 0),
+      asis: Math.max(0, parseInt(a) || 0)
+    });
+    cargarTemporada();
+  }catch(e){ mostrarError('No se pudo guardar.'); }
+}
+/* Poner la tabla acumulada en cero */
+async function reiniciarStats(){
+  if(!confirm('¿Poner la tabla de goleadoras en cero? Se borrarán todos los datos acumulados.')) return;
+  try{
+    await db.ref('stats/jugadoras').remove();
+    cargarTemporada();
+  }catch(e){ mostrarError('No se pudo reiniciar.'); }
 }
 
 /* ================= RENDER ================= */
