@@ -194,6 +194,13 @@ window.FIREBASE_CONFIG = {
   <!-- ============ CREAR PARTIDO ============ -->
   <section id="pantalla-crear" class="pantalla">
     <h1>⚽ Nuevo partido</h1>
+    <div class="card" id="card-temporada" style="border-color:#ffd166">
+      <div style="color:#ffd166;font-weight:900;letter-spacing:1px;font-size:14px;margin-bottom:8px">TEMPORADA 2026/27</div>
+      <div id="temporada-pos" style="margin-bottom:10px;color:#f0f4fa"></div>
+      <div id="temporada-top3"></div>
+      <button class="btn ghost" id="btn-ver-stats" type="button" style="font-size:14px;min-height:44px;margin-top:8px">Ver tabla completa ▾</button>
+      <div id="temporada-tabla" style="display:none;margin-top:10px"></div>
+    </div>
     <div class="card">
       <label>Título del partido (opcional)</label>
       <input type="text" id="titulo" placeholder="Ej. NC Fall · Semifinal" maxlength="40">
@@ -420,6 +427,7 @@ function mostrar(id){
   document.querySelectorAll('.pantalla').forEach(p=>p.classList.remove('activa'));
   $(id).classList.add('activa');
   window.scrollTo(0,0);
+  if(id === 'pantalla-crear') cargarTemporada();
 }
 
 /* ================= CONFIG ================= */
@@ -588,6 +596,7 @@ function rFinalizar(){
   snapshot();
   db.ref('partido/reloj').update({ baseSeg: Math.floor(segReloj(estado.reloj)), inicioEn: null, corriendo: false, terminado: true })
     .catch(e=>mostrarError(e.message));
+  acumularStats();
 }
 
 /* ================= GOLES ================= */
@@ -1097,6 +1106,86 @@ async function compartirInvitacion(){
   }catch(e){ mostrarError('No se pudo generar la invitación: ' + e.message); }
 }
 
+/* ================= ESTADÍSTICAS DE TEMPORADA ================= */
+/* Clave segura para Firebase (no permite . $ # [ ] /) */
+function claveJug(nombre){
+  return String(nombre || 'jugadora').replace(/[.#$\[\]\/]/g, '_').trim().slice(0, 80) || 'jugadora';
+}
+/* Suma los goles/asistencias del partido a la tabla acumulada (una sola vez) */
+async function acumularStats(){
+  try{
+    if(!estado || estado.statsGuardadas || !db) return;
+    const inc = firebase.database.ServerValue.increment(1);
+    const up = {};
+    Object.values(estado.goles || {}).forEach(g=>{
+      if(g.jugador){
+        const k = claveJug(g.jugador);
+        up['stats/jugadoras/' + k + '/goles'] = inc;
+        up['stats/jugadoras/' + k + '/nombre'] = g.jugador;
+      }
+      if(g.asis){
+        const k = claveJug(g.asis);
+        up['stats/jugadoras/' + k + '/asis'] = inc;
+        up['stats/jugadoras/' + k + '/nombre'] = g.asis;
+      }
+    });
+    up['partido/statsGuardadas'] = true;
+    await db.ref().update(up);
+    estado.statsGuardadas = true;
+  }catch(e){ /* silencioso: se reintenta al finalizar de nuevo */ }
+}
+let cacheStats = {};
+async function cargarTemporada(){
+  const posBox = $('temporada-pos'), topBox = $('temporada-top3'), tabBox = $('temporada-tabla');
+  if(!posBox) return;
+  posBox.innerHTML = '<span style="color:#8a8a8a">Cargando...</span>';
+  if(topBox) topBox.innerHTML = '';
+  if(tabBox){ tabBox.style.display = 'none'; tabBox.innerHTML = ''; }
+  const btnV = $('btn-ver-stats');
+  if(btnV) btnV.textContent = 'Ver tabla completa ▾';
+  // posición en la liga: la actualiza Fénix automáticamente en /fkkStandings
+  let st = null;
+  try{
+    const dbUrl = (firebase.app().options.databaseURL || '').replace(/\/$/, '');
+    const r = await fetch(dbUrl + '/fkkStandings.json');
+    if(r.ok) st = await r.json();
+  }catch(e){}
+  // acumulados de jugadoras
+  let jug = {};
+  try{
+    if(db){
+      const s = await db.ref('stats/jugadoras').once('value');
+      jug = s.val() || {};
+    }
+  }catch(e){}
+  cacheStats = jug;
+  // tarjeta de posición
+  posBox.innerHTML = st && typeof st.posicion === 'number'
+    ? `<b>ECNL Girls Southeast · GU13</b><br><span style="font-size:20px">Posición: <b style="color:#ffd166">${st.posicion}.º</b> · ${st.puntos} pts · ${st.pj} PJ</span>`
+    : '<span style="color:#8a8a8a">Posición en la liga: —</span>';
+  // top 3 goleadoras
+  const orden = Object.values(jug).sort((a,b)=> ((b.goles||0)-(a.goles||0)) || ((b.asis||0)-(a.asis||0)));
+  if(topBox){
+    topBox.innerHTML = orden.length
+      ? '<div style="color:#8a8a8a;font-size:14px;margin-bottom:6px">GOLEADORAS</div>' + orden.slice(0,3).map((j,i)=>
+          `<div style="display:flex;justify-content:space-between;padding:6px 0;${i<2?'border-bottom:1px solid var(--line);':''}">` +
+          `<span>${j.nombre||''}</span><span><b>${j.goles||0}</b> goles · ${j.asis||0} asist.</span></div>`
+        ).join('')
+      : '<span style="color:#8a8a8a">Sin goles registrados todavía.</span>';
+  }
+  // tabla completa (oculta)
+  if(tabBox){
+    tabBox.innerHTML = orden.length
+      ? orden.map((j,i)=>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;margin-bottom:8px;` +
+          `background:${i%2?'#101828':'#16213a'};${i===0?'border:2px solid #ffd166;':''}">` +
+          `<span><b style="color:#8a8a8a">${i+1}.</b> ${j.nombre||''}</span>` +
+          `<span><b>${j.goles||0}</b> <span style="color:#8a8a8a">goles</span> · <b>${j.asis||0}</b> <span style="color:#8a8a8a">asist.</span></span></div>`
+        ).join('')
+      : '<span style="color:#8a8a8a">Sin datos todavía.</span>';
+  }
+}
+
 /* ================= RENDER ================= */
 /* minuto absoluto como lo muestra el reloj grande (convierte goles viejos del
    2do tiempo que se guardaron con el minuto relativo al tiempo) */
@@ -1315,6 +1404,12 @@ function iniciarApp(){
 
   $('btn-empezar').onclick = empezarPartido;
   $('btn-fav-fkk').onclick = guardarFavFKK;
+  $('btn-ver-stats').onclick = ()=>{
+    const t = $('temporada-tabla');
+    const abierto = t.style.display !== 'none';
+    t.style.display = abierto ? 'none' : 'block';
+    $('btn-ver-stats').textContent = abierto ? 'Ver tabla completa ▾' : 'Ocultar tabla ▴';
+  };
   cargarFavFKK();
   aplicarDefaults();
   $('btn-pin').onclick = async ()=>{
