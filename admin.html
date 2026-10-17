@@ -660,7 +660,7 @@ function asignarAsistencia(key, n){
 function borrarGolModal(key){
   const g = (estado.goles || {})[key];
   if(!g) return;
-  if(!confirm('¿Borrar el gol de ' + (g.jugador || 'Gol') + " (" + g.minuto + "')?")) return;
+  if(!confirm('¿Borrar el gol de ' + (g.jugador || 'Gol') + " (" + minAbsGol(g) + "')?")) return;
   snapshot();
   const eq = g.equipo, up = {};
   up['partido/goles/' + key] = null;
@@ -688,7 +688,7 @@ function renderModalGoles(){
     const palabraGol = g.jugador ? 'Gol ' : '';
     return `<div class="gol-item${sel}" data-k="${g.id}" style="border-left-color:${col};cursor:pointer">` +
       `<button class="gol-x" data-x="${g.id}" title="Borrar">✕</button>` +
-      `<span class="min">${g.minuto}'</span>⚽ ${palabraGol}<b>${g.jugador || 'Gol'}</b>${tipo}${asis}</div>`;
+      `<span class="min">${minAbsGol(g)}'</span>⚽ ${palabraGol}<b>${g.jugador || 'Gol'}</b>${tipo}${asis}</div>`;
   }).join('');
   box.querySelectorAll('.gol-item').forEach(el=>{
     el.onclick = e=>{
@@ -704,7 +704,10 @@ function renderModalGoles(){
 function registrarGol(eq, jugador, tipo, asis){
   snapshot();
   explosionColores();
-  const minuto = Math.floor(segReloj(estado.reloj)/60);
+  // minuto absoluto como lo muestra el reloj grande (en 2do tiempo arranca en 35', 40', 45'...)
+  const per = estado.reloj && estado.reloj.periodo;
+  const es2 = (per === 2 || per === '2') && (estado.config.periodos || 2) > 1;
+  const minuto = (es2 ? (estado.config.minutosPeriodo || 35) : 0) + Math.floor(segReloj(estado.reloj)/60);
   const key = db.ref('partido/goles').push().key;
   const gol = { id: key, equipo: eq, minuto, jugador: jugador || '', tipo: tipo || 'jugada', asis: asis || '', periodo: (estado.reloj && estado.reloj.periodo) || null };
   const up = {};
@@ -936,7 +939,7 @@ async function dibujarResultado(){
     const lineas = golesA.map(g=>{
       const pen = g.tipo === 'penal' ? ' (pen)' : '';
       const as = g.asis ? ' · asis: ' + g.asis : '';
-      return g.minuto + "' " + (g.jugador || 'Gol') + pen + as;
+      return minAbsGol(g) + "' " + (g.jugador || 'Gol') + pen + as;
     });
     const maxW = Math.max.apply(null, lineas.map(l=>x.measureText(l).width));
     x.textAlign = 'left';
@@ -1095,8 +1098,15 @@ async function compartirInvitacion(){
 }
 
 /* ================= RENDER ================= */
+/* minuto absoluto como lo muestra el reloj grande (convierte goles viejos del
+   2do tiempo que se guardaron con el minuto relativo al tiempo) */
+function minAbsGol(g){
+  const minP = (estado && estado.config && estado.config.minutosPeriodo) || 35;
+  const m = g.minuto || 0;
+  return ((g.periodo === 2 || g.periodo === '2') && m < minP) ? m + minP : m;
+}
 function listaGoles(){
-  return Object.values(estado.goles || {}).sort((x,y)=> (x.minuto - y.minuto) || (x.id < y.id ? -1 : 1));
+  return Object.values(estado.goles || {}).sort((x,y)=> (minAbsGol(x) - minAbsGol(y)) || (x.id < y.id ? -1 : 1));
 }
 function golHTML(g){
   const eq = estado.config[g.equipo];
@@ -1106,7 +1116,7 @@ function golHTML(g){
   const quien = g.jugador ? `<b>${g.jugador}</b>` : '<b>Gol</b>';
   const palabraGol = g.jugador ? 'Gol ' : '';
   return `<div class="gol-item" style="border-left-color:${eq.color}">
-    <span class="min">${g.minuto}'</span>${icono} ${palabraGol}${quien}${tipo}${asis}</div>`;
+    <span class="min">${minAbsGol(g)}'</span>${icono} ${palabraGol}${quien}${tipo}${asis}</div>`;
 }
 function render(){
   if(!estado){ mostrar('pantalla-crear'); return; }
@@ -1164,7 +1174,7 @@ function compartir(){
   const tit = estado.config.titulo ? `🏆 ${estado.config.titulo}\n` : '';
   let t = tit + `⚽ FINAL: ${a.nombre} ${estado.marcador.a||0} – ${estado.marcador.b||0} ${b.nombre}\n`;
   listaGoles().forEach(g=>{
-    t += `${g.minuto}' ${g.jugador || 'Gol'} (${estado.config[g.equipo].nombre})${g.tipo==='penal'?' [penal]':''}${g.asis?' · asis: '+g.asis:''}\n`;
+    t += `${minAbsGol(g)}' ${g.jugador || 'Gol'} (${estado.config[g.equipo].nombre})${g.tipo==='penal'?' [penal]':''}${g.asis?' · asis: '+g.asis:''}\n`;
   });
   if(navigator.share){ navigator.share({ title: 'Resultado final', text: t }).catch(()=>{}); }
   else if(navigator.clipboard){ navigator.clipboard.writeText(t).then(()=>alert('Resultado copiado.')).catch(()=>alert(t)); }
