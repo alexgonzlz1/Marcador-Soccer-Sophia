@@ -380,9 +380,12 @@ function render(){
   else if((estado.reloj.baseSeg||0) > 0){ badge.classList.add('pausado'); txt.textContent = 'PAUSED'; dot.style.display='none'; }
   else { badge.classList.add('espera'); txt.textContent = 'KICKOFF'; dot.style.display='none'; }
 
-  // goles
+  // goles en orden de tiempo transcurrido (tiempo * minutos + minuto)
+  const minP = (estado.config && estado.config.minutosPeriodo) || 35;
+  const idxPer = g => g.periodo === 'D' ? 1 : (g.periodo === 2 || g.periodo === '2' ? 2 : 0);
+  const tTrans = g => idxPer(g) * minP + (g.minuto || 0);
   const goles = Object.values(estado.goles || {})
-    .sort((x,y)=> (x.minuto - y.minuto) || (x.id < y.id ? -1 : 1));
+    .sort((x,y)=> (tTrans(x) - tTrans(y)) || (x.id < y.id ? -1 : 1));
   if(primerRender){ golesVistos = goles.length; primerRender = false; }
   else {
     if(goles.length > golesVistos){
