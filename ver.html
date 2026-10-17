@@ -234,6 +234,18 @@ function iniciarPresencia(){
     window.addEventListener('pagehide', ()=>{ try{ ref.remove(); }catch(e){} });
   }catch(e){}
 }
+/* Visita única: cuenta cuántas personas abrieron el enlace (una vez por navegador) */
+function registrarVisita(){
+  try{
+    let idv = null;
+    try{ idv = localStorage.getItem('mf_idv'); }catch(e){}
+    if(!idv){
+      idv = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      try{ localStorage.setItem('mf_idv', idv); }catch(e){}
+    }
+    if(db) db.ref('partido/visitas/' + idv).set(true).catch(()=>{});
+  }catch(e){}
+}
 /* Modo día/noche (para el sol en la cancha) */
 function aplicarTema(){
   let claro = false;
@@ -431,6 +443,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   }
   db = firebase.database();
   iniciarPresencia();
+  registrarVisita();
 
   db.ref('.info/serverTimeOffset').on('value', s=>{ serverOffset = s.val() || 0; });
   db.ref('.info/connected').on('value', s=>{
