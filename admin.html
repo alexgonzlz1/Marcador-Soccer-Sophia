@@ -1245,7 +1245,8 @@ function golHTML(g){
     <span class="min">${minAbsGol(g)}'</span>${icono} ${palabraGol}${quien}${tipo}${asis}</div>`;
 }
 function render(){
-  if(!estado){ mostrar('pantalla-crear'); return; }
+  // sin config/reloj válidos no hay partido (el nodo puede tener solo "visitas")
+  if(!estado || !estado.config || !estado.reloj){ mostrar('pantalla-crear'); return; }
   if(estado.reloj.terminado){ renderFinal(); mostrar('pantalla-final'); return; }
   if(sessionStorage.getItem('mf_pin_ok') !== '1'){ mostrar('pantalla-pin'); return; }
   mostrar('pantalla-controles');
@@ -1351,7 +1352,7 @@ function ajustarReloj(){
   else { up.inicioEn = null; up.corriendo = false; }
   db.ref('partido/reloj').update(up).catch(e=>mostrarError(e.message));
 }
-function tick(){ if(estado && !estado.reloj.terminado && $('pantalla-controles').classList.contains('activa')){
+function tick(){ if(estado && estado.reloj && !estado.reloj.terminado && $('pantalla-controles').classList.contains('activa')){
   $('reloj').textContent = fmt(segReloj(estado.reloj)); } }
 
 /* ================= ARRANQUE ================= */
