@@ -253,8 +253,36 @@ function aplicarTema(){
   document.body.classList.toggle('claro', claro);
   const b = $('btn-tema'); if(b) b.textContent = claro ? '🌙' : '☀️';
 }
-/* Destello + vibración cuando cae un gol */
+/* Destello + vibración + silbato cuando cae un gol */
 let primerRender = true, golesVistos = 0;
+let audioCtx = null;
+function desbloquearAudio(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }catch(e){}
+}
+window.addEventListener('touchstart', desbloquearAudio, {passive:true});
+window.addEventListener('click', desbloquearAudio);
+/* Silbato de gol sintetizado (funciona sin archivos externos) */
+function sonarGol(){
+  try{
+    desbloquearAudio();
+    if(!audioCtx) return;
+    const ctx = audioCtx, t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    const lfo = ctx.createOscillator(), lg = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 2350;
+    lfo.type = 'sine'; lfo.frequency.value = 28; lg.gain.value = 160;
+    lfo.connect(lg); lg.connect(o.frequency);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.28, t + 0.06);
+    g.gain.setValueAtTime(0.28, t + 0.9);
+    g.gain.linearRampToValueAtTime(0.0001, t + 1.15);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); lfo.start(t); o.stop(t + 1.25); lfo.stop(t + 1.25);
+  }catch(e){}
+}
 function destellar(color){
   try{
     const f = $('flash');
@@ -264,6 +292,7 @@ function destellar(color){
     setTimeout(()=>f.classList.add('on'), 480);
     setTimeout(()=>f.classList.remove('on'), 800);
     if(navigator.vibrate) navigator.vibrate([120, 60, 120]);
+    sonarGol();
   }catch(e){}
 }
 
