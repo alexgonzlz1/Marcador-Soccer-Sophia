@@ -368,7 +368,8 @@ function nombreCorto(j){
   return /^sophia$/i.test(partes[0]) ? corto + ' (speedy)' : corto;
 }
 function render(){
-  if(!estado){
+  // sin config válida no hay partido (el nodo puede tener solo "visitas")
+  if(!estado || !estado.config){
     $('vista-vacia').style.display = 'flex';
     $('vista-partido').style.display = 'none';
     document.title = 'Live Scoreboard ⚽';
