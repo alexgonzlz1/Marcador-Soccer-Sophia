@@ -1160,9 +1160,14 @@ async function cargarTemporada(){
     }
   }catch(e){}
   cacheStats = jug;
-  // tarjeta de posición
+  // tarjeta de posición (fila completa de la tabla: GP W L D GF GA GD Pts)
+  const gdTxt = (st.gd != null && st.gd >= 0 ? '+' : '') + st.gd;
   posBox.innerHTML = st && typeof st.posicion === 'number'
-    ? `<b>ECNL Girls Southeast · GU13</b><br><span style="font-size:20px">Posición: <b style="color:#ffd166">${st.posicion}.º</b> · ${st.puntos} pts · ${st.pj} PJ</span>`
+    ? `<b>ECNL Girls Southeast · GU13</b><br>` +
+      `<span style="font-size:20px">Posición: <b style="color:#ffd166">${st.posicion}.º</b> · ${st.puntos} pts</span>` +
+      (st.gp != null
+        ? `<br><span style="font-size:15px;color:#9aa5b8">GP ${st.gp} · W ${st.w} · L ${st.l} · D ${st.d} · GF ${st.gf} · GA ${st.ga} · GD ${gdTxt} · <b style="color:#fff">${st.puntos} Pts</b></span>`
+        : `<br><span style="font-size:15px;color:#9aa5b8">${st.pj} PJ</span>`)
     : '<span style="color:#8a8a8a">Posición en la liga: —</span>';
   // top 3 goleadoras
   const pares = Object.entries(jug);
