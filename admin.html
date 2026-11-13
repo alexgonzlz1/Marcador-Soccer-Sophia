@@ -70,6 +70,9 @@ window.FIREBASE_CONFIG = {
   input[type=text],input[type=number],input[type=password],textarea,select{
     width:100%;background:var(--card2);border:1px solid var(--line);color:var(--txt);
     border-radius:12px;padding:14px;font-size:17px;font-family:inherit;margin-top:6px;}
+  /* menús desplegables (equipo y tipo de partido): mitad de tamaño para que las opciones no ocupen toda la pantalla del teléfono */
+  #selEquipoB,#selTipo{font-size:8.5px;}
+  #selEquipoB option,#selTipo option{font-size:8.5px;}
   input:focus,textarea:focus{outline:2px solid var(--blue);border-color:var(--blue);}
   textarea{min-height:96px;resize:vertical;line-height:1.5;}
   .fila{display:flex;gap:10px;}
