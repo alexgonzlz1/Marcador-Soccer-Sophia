@@ -545,6 +545,7 @@ async function empezarPartido(){
       b: { nombre: nB, color: colorB, logo: logoBData },
       minutosPeriodo: minutos, periodos: perSel, pinHash: await sha256hex(pin),
       titulo: $('titulo').value.trim(),
+      tipo: (document.getElementById('selTipo') || {}).value || 'liga',
       creadoEn: firebase.database.ServerValue.TIMESTAMP
     },
     marcador: { a: 0, b: 0 },
@@ -1122,6 +1123,8 @@ function claveJug(nombre){
 async function acumularStats(){
   try{
     if(!estado || estado.statsGuardadas || !db) return;
+    // los goles de torneo no cuentan para la tabla de temporada (liga)
+    if(estado.config && estado.config.tipo === 'torneo') return;
     const inc = firebase.database.ServerValue.increment(1);
     const up = {};
     Object.values(estado.goles || {}).forEach(g=>{
@@ -1542,5 +1545,6 @@ function iniciarApp(){
 }); // fin de DOMContentLoaded
 </script>
   <script src="Liga.js"></script>
+  <script src="Torneo.js"></script>
 </body>
 </html>
