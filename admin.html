@@ -112,7 +112,8 @@ window.FIREBASE_CONFIG = {
     display:flex;flex-direction:column;align-items:center;gap:10px;}
   .reloj{font-weight:900;font-size:64px;letter-spacing:2px;font-variant-numeric:tabular-nums;cursor:pointer;}
   .periodo{font-weight:900;font-size:22px;background:#3a3a3a;border-radius:999px;
-    padding:10px 28px;letter-spacing:2px;}
+    padding:10px 28px;letter-spacing:2px;cursor:pointer;}
+  .periodo:active{transform:scale(.97);}
   .reloj-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
   .reloj-btns button{min-height:60px;font-size:17px;background:#3a3a3a;}
   .reloj-btns button.principal{background:var(--green);color:#0b2b16;}
@@ -289,7 +290,7 @@ window.FIREBASE_CONFIG = {
     <div class="reloj-card">
       <div class="reloj" id="reloj" title="Tocar para ajustar">00:00</div>
       <p class="nota" style="margin:0">Toca el reloj para ajustar el tiempo</p>
-      <div class="periodo" id="periodo-txt">1T</div>
+      <div class="periodo" id="periodo-txt" title="Tocar para cambiar la duración del periodo">1T</div>
       <div class="reloj-btns">
         <button id="btn-reloj" class="principal">▶ Iniciar</button>
         <button id="btn-cero">⟲ Cero</button>
@@ -348,6 +349,28 @@ window.FIREBASE_CONFIG = {
       <div class="goles-lista" id="modal-goles" style="margin-top:6px"></div>
       <div class="fila" style="margin-top:16px">
         <button class="btn verde" id="gol-listo" style="width:100%">✓ Listo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL DURACIÓN DEL PERIODO ============ -->
+  <div class="modal-fondo" id="modal-duracion">
+    <div class="modal">
+      <h2>Duración del periodo</h2>
+      <p class="sub" style="text-align:left">El reloj, la cuenta regresiva y los minutos de los goles se ajustan solos.</p>
+      <div class="seg" id="seg-duracion">
+        <button data-v="25">25</button>
+        <button data-v="30">30</button>
+        <button data-v="35">35</button>
+        <button data-v="40">40</button>
+        <button data-v="45">45</button>
+      </div>
+      <input type="number" id="dur-custom" placeholder="Otro (minutos)" min="1" max="120" style="margin-top:8px">
+      <div class="fila" style="margin-top:16px">
+        <button class="btn verde" id="dur-aplicar" style="width:100%">✓ Aplicar</button>
+      </div>
+      <div class="fila" style="margin-top:8px">
+        <button class="btn gris" id="dur-cancelar" style="width:100%">Cancelar</button>
       </div>
     </div>
   </div>
@@ -1276,7 +1299,7 @@ function render(){
   // reloj
   $('reloj').textContent = fmt(segReloj(estado.reloj));
   const ptxt = $('periodo-txt');
-  ptxt.textContent = etiquetaPeriodo() + ' · ' + estado.config.minutosPeriodo + "'";
+  ptxt.textContent = etiquetaPeriodo() + ' · ' + estado.config.minutosPeriodo + "' ▾";
   ptxt.style.background = estado.reloj.periodo === 'D' ? '#2b3a55' : '#3a3a3a';
   const br = $('btn-reloj');
   if(estado.reloj.corriendo){ br.textContent = '⏸ Pausar'; }
@@ -1363,6 +1386,40 @@ function ajustarReloj(){
   if(estado.reloj.corriendo){ up.inicioEn = firebase.database.ServerValue.TIMESTAMP; up.corriendo = true; }
   else { up.inicioEn = null; up.corriendo = false; }
   db.ref('partido/reloj').update(up).catch(e=>mostrarError(e.message));
+}
+/* ================= DURACIÓN DEL PERIODO EN VIVO =================
+   La etiqueta del periodo funciona como botón: toca y elige los minutos.
+   Actualiza config.minutosPeriodo y corrige los minutos de los goles del
+   2do tiempo ya anotados (los del 1er tiempo no usan offset). El visor lee
+   la duración en vivo, así que reloj y cuenta regresiva se ajustan solos. */
+function abrirModalDuracion(){
+  if(!estado || !estado.config) return;
+  const cur = estado.config.minutosPeriodo || 35;
+  document.querySelectorAll('#seg-duracion button').forEach(x=>x.classList.toggle('sel', +x.dataset.v === cur));
+  $('dur-custom').value = ([25,30,35,40,45].indexOf(cur) >= 0) ? '' : cur;
+  $('modal-duracion').classList.add('abierto');
+}
+function cambiarDuracion(){
+  if(!estado || !estado.config) return;
+  const custom = parseInt($('dur-custom').value, 10);
+  let n = (custom > 0) ? custom : null;
+  if(n === null){
+    const sel = document.querySelector('#seg-duracion button.sel');
+    n = sel ? +sel.dataset.v : (estado.config.minutosPeriodo || 35);
+  }
+  if(!(n >= 1 && n <= 120)){ mostrarError('Minutos inválidos (1–120).'); return; }
+  const viejo = estado.config.minutosPeriodo || 35;
+  $('modal-duracion').classList.remove('abierto');
+  if(n === viejo) return;
+  const up = { 'partido/config/minutosPeriodo': n };
+  const delta = viejo - n;
+  Object.values(estado.goles || {}).forEach(g=>{
+    if(g.id && (g.periodo === 2 || g.periodo === '2') && (g.minuto || 0) >= viejo){
+      up['partido/goles/' + g.id + '/minuto'] = (g.minuto || 0) - delta;
+    }
+  });
+  db.ref().update(up).catch(e=>mostrarError(e.message));
+  guardarDefaults(n, estado.config.periodos);
 }
 function tick(){ if(estado && estado.reloj && !estado.reloj.terminado && $('pantalla-controles').classList.contains('activa')){
   $('reloj').textContent = fmt(segReloj(estado.reloj)); } }
@@ -1505,6 +1562,12 @@ function iniciarApp(){
   $('btn-enlace').onclick = compartirEnlace;
   $('btn-invitacion').onclick = compartirInvitacion;
   $('reloj').onclick = ajustarReloj;
+  $('periodo-txt').onclick = abrirModalDuracion;
+  document.querySelectorAll('#seg-duracion button').forEach(b=>b.onclick=()=>{
+    $('dur-custom').value='';
+    document.querySelectorAll('#seg-duracion button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); });
+  $('dur-aplicar').onclick = cambiarDuracion;
+  $('dur-cancelar').onclick = ()=>$('modal-duracion').classList.remove('abierto');
 
   // pantalla siempre encendida mientras se lleva el partido
   pedirWakeLock();
