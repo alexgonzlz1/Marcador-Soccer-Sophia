@@ -215,6 +215,7 @@ window.FIREBASE_CONFIG = {
       <div class="cuenta"><span class="cuenta-label">REMAINING</span><span id="cuenta">--:--</span></div>
       <div class="periodo" id="periodo">–</div>
       <div class="pos-liga" id="posLiga"></div>
+      <div class="pos-liga" id="posLigaNota" style="margin-top:2px">Posición y puntos acumulados en la liga</div>
     </div>
 
     <h2>⚽ Goals</h2>
@@ -494,10 +495,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
   // posición de FKK en la liga (dato actualizado automáticamente)
   try{
     db.ref('fkkStandings').on('value', s=>{
-      const st = s.val(), el = $('posLiga');
-      if(el) el.textContent = st && typeof st.posicion === 'number'
-        ? `FKK_GU13 Posición: ${st.posicion}.º · ${st.puntos} pts`
-        : '';
+      const st = s.val(), el = $('posLiga'), nota = $('posLigaNota');
+      const hay = st && typeof st.posicion === 'number';
+      if(el) el.textContent = hay ? `FKK_GU13 Posición: ${st.posicion}.º · ${st.puntos} pts` : '';
+      if(nota) nota.style.display = hay ? '' : 'none';
     });
   }catch(e){}
 
