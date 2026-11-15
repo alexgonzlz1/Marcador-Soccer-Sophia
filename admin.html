@@ -244,6 +244,7 @@ window.FIREBASE_CONFIG = {
     <div class="card">
       <label>Duración de cada periodo (minutos)</label>
       <div class="seg" id="seg-min">
+        <button data-v="30">30</button>
         <button data-v="35" class="sel">35</button>
         <button data-v="40">40</button>
         <button data-v="45">45</button>
@@ -384,7 +385,7 @@ let db = null, estado = null, serverOffset = 0;
 let golEquipo = 'a', golTipo = 'jugada';
 /* Goles registrados con el modal abierto (para asignar asistencia sin confirmación) */
 let golesSesion = [], golSelAsis = null;
-const COLORES = ['#1E5AA8','#D2202F','#1B7A3D','#F2B705','#FFFFFF','#E8721C','#7B2FBE','#29A3D8','#E85D9E','#111111'];
+const COLORES = ['#1E5AA8','#D2202F','#1B7A3D','#F2B705','#FFFFFF','#E8721C','#7B2FBE','#29A3D8','#4A6F8C','#A8D8EA','#E85D9E','#111111'];
 let colorA = COLORES[0], colorB = COLORES[1], logoAData = '', logoBData = '';
 let minSel = 35, perSel = 2;
 /* Caché de las últimas listas de jugadoras (por si un partido se crea sin ellas) */
@@ -422,7 +423,7 @@ function aplicarDefaults(){
     document.querySelectorAll('#seg-per button').forEach(x=>x.classList.toggle('sel', +x.dataset.v === perSel));
   }
   if(d.minutos > 0){
-    if([35, 40, 45].indexOf(d.minutos) >= 0){
+    if([30, 35, 40, 45].indexOf(d.minutos) >= 0){
       minSel = d.minutos; $('min-custom').value = '';
       document.querySelectorAll('#seg-min button').forEach(x=>x.classList.toggle('sel', +x.dataset.v === minSel));
     } else {
