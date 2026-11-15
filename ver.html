@@ -229,6 +229,13 @@ window.FIREBASE_CONFIG = {
 let db = null, estado = null, serverOffset = 0;
 const $ = id => document.getElementById(id);
 const ahora = () => Date.now() + serverOffset;
+/* Un color puede ser un círculo partido en dos (linear-gradient) para fondos;
+   donde se necesita un color sólido (brillo, puntos, bordes) se usa la
+   primera mitad del degradado. */
+function colorSolido(c){
+  const m = String(c || '').match(/linear-gradient\([^,]+,\s*(#[0-9a-fA-F]{3,8})/);
+  return m ? m[1] : c;
+}
 
 /* Presencia: avisa al admin cuántas personas están viendo (se borra sola al salir) */
 let vid = null;
@@ -404,11 +411,11 @@ function render(){
   // highlight the team in the lead (depth + glow)
   const sombraBase = '0 3px 0 rgba(0,0,0,.45), 0 12px 28px rgba(0,0,0,.55)';
   $('numA').style.textShadow = sombraBase; $('numB').style.textShadow = sombraBase;
-  if((m.a||0) > (m.b||0)) $('numA').style.textShadow = sombraBase + ', 0 0 34px ' + cfg.a.color;
-  else if((m.b||0) > (m.a||0)) $('numB').style.textShadow = sombraBase + ', 0 0 34px ' + cfg.b.color;
+  if((m.a||0) > (m.b||0)) $('numA').style.textShadow = sombraBase + ', 0 0 34px ' + colorSolido(cfg.a.color);
+  else if((m.b||0) > (m.a||0)) $('numB').style.textShadow = sombraBase + ', 0 0 34px ' + colorSolido(cfg.b.color);
   // team colors on each separate card (accent bar + logo ring via --ceq)
-  $('cardA').style.setProperty('--ceq', cfg.a.color);
-  $('cardB').style.setProperty('--ceq', cfg.b.color);
+  $('cardA').style.setProperty('--ceq', colorSolido(cfg.a.color));
+  $('cardB').style.setProperty('--ceq', colorSolido(cfg.b.color));
   $('barraA').style.background = cfg.a.color;
   $('barraB').style.background = cfg.b.color;
 
@@ -453,9 +460,9 @@ function render(){
     const icono = g.tipo === 'penal' ? '🥅' : '⚽';
     const per = g.periodo === 'D' ? 'HT' : (g.periodo === 2 || g.periodo === '2' ? '2nd' : (g.periodo ? '1st' : ''));
     const gooool = g.jugador
-      ? `<span class="gooool" style="color:${eq.color}">GOOOOL</span> <b>${nombreCorto(g.jugador)}</b>`
-      : `<span class="gooool" style="color:${eq.color}">GOOOOL DE ${eq.nombre.toUpperCase()}</span>`;
-    return `<div class="gol" style="border-left-color:${eq.color}">
+      ? `<span class="gooool" style="color:${colorSolido(eq.color)}">GOOOOL</span> <b>${nombreCorto(g.jugador)}</b>`
+      : `<span class="gooool" style="color:${colorSolido(eq.color)}">GOOOOL DE ${eq.nombre.toUpperCase()}</span>`;
+    return `<div class="gol" style="border-left-color:${colorSolido(eq.color)}">
       <span class="min">${minAbs(g)}'</span>${per ? `<span class="per">${per}</span>` : ''}${icono} ${gooool}<span class="det">${g.tipo==='penal'?' · Penalty':''}${g.asis?' · ast: '+nombreCorto(g.asis):''}</span>
     </div>`;
   }).join('') : '<p style="color:#8a8a8a;font-size:14px;margin:0 2px">No goals yet.</p>';

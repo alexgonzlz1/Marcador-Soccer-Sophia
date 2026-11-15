@@ -385,7 +385,14 @@ let db = null, estado = null, serverOffset = 0;
 let golEquipo = 'a', golTipo = 'jugada';
 /* Goles registrados con el modal abierto (para asignar asistencia sin confirmación) */
 let golesSesion = [], golSelAsis = null;
-const COLORES = ['#1E5AA8','#D2202F','#1B7A3D','#F2B705','#FFFFFF','#E8721C','#7B2FBE','#29A3D8','#4A6F8C','#A8D8EA','#E85D9E','#111111'];
+const COLORES = ['#1E5AA8','#D2202F','#1B7A3D','#F2B705','#FFFFFF','#E8721C','#7B2FBE','#29A3D8','linear-gradient(90deg,#333333 50%,#2563EB 50%)','linear-gradient(90deg,#29A3D8 50%,#FFFFFF 50%)','#E85D9E','#111111'];
+/* Un color puede ser un círculo partido en dos (linear-gradient) para botones
+   y fondos; donde se necesita un color sólido (bordes, puntos, sombras,
+   lienzo) se usa la primera mitad del degradado. */
+function colorSolido(c){
+  const m = String(c || '').match(/linear-gradient\([^,]+,\s*(#[0-9a-fA-F]{3,8})/);
+  return m ? m[1] : c;
+}
 let colorA = COLORES[0], colorB = COLORES[1], logoAData = '', logoBData = '';
 let minSel = 35, perSel = 2;
 /* Caché de las últimas listas de jugadoras (por si un partido se crea sin ellas) */
@@ -728,7 +735,7 @@ function renderModalGoles(){
     const sel = golSelAsis === g.id ? ' sel' : '';
     const asis = g.asis ? ` <span class="tipo">· asis: ${g.asis}</span>` : '';
     const tipo = g.tipo === 'penal' ? ' <span class="tipo">(penal)</span>' : '';
-    const col = (estado.config[g.equipo] || {}).color || '#888';
+    const col = colorSolido((estado.config[g.equipo] || {}).color || '#888');
     const palabraGol = g.jugador ? 'Gol ' : '';
     return `<div class="gol-item${sel}" data-k="${g.id}" style="border-left-color:${col};cursor:pointer">` +
       `<button class="gol-x" data-x="${g.id}" title="Borrar">✕</button>` +
@@ -943,7 +950,7 @@ async function dibujarResultado(){
   const tarjeta = (tCx, eq, gol, logoImg)=>{
     const cw = 440, ch = 600, x0 = tCx - cw/2, top = 420;
     x.save();
-    x.shadowColor = eq.color || '#888888'; x.shadowBlur = 45;
+    x.shadowColor = colorSolido(eq.color || '#888888'); x.shadowBlur = 45;
     x.fillStyle = 'rgba(8,16,34,.93)';
     x.beginPath();
     if(x.roundRect) x.roundRect(x0, top, cw, ch, 36); else x.rect(x0, top, cw, ch);
@@ -966,7 +973,7 @@ async function dibujarResultado(){
     const gt = String(gol);
     x.strokeText(gt, tCx, top+515);
     x.fillStyle = '#ffffff'; x.fillText(gt, tCx, top+515);
-    x.fillStyle = eq.color || '#888888';
+    x.fillStyle = colorSolido(eq.color || '#888888');
     x.beginPath();
     if(x.roundRect) x.roundRect(x0+30, top+ch-36, cw-60, 18, 9); else x.rect(x0+30, top+ch-36, cw-60, 18);
     x.fill();
@@ -1083,7 +1090,7 @@ async function dibujarInvitacion(){
       try{ x.drawImage(img, lx - w/2, 430 - h/2, w, h); }catch(e){}
       return;
     }
-    x.fillStyle = cfgEq.color || '#888888';
+    x.fillStyle = colorSolido(cfgEq.color || '#888888');
     x.beginPath(); x.arc(lx, 430, 110, 0, 7); x.fill();
     x.fillStyle = '#ffffff'; x.font = '900 130px Arial';
     x.fillText((cfgEq.nombre || '?').trim().charAt(0).toUpperCase(), lx, 478);
@@ -1277,7 +1284,7 @@ function golHTML(g){
   const asis = g.asis ? ` <span class="tipo">· asis: ${g.asis}</span>` : '';
   const quien = g.jugador ? `<b>${g.jugador}</b>` : '<b>Gol</b>';
   const palabraGol = g.jugador ? 'Gol ' : '';
-  return `<div class="gol-item" style="border-left-color:${eq.color}">
+  return `<div class="gol-item" style="border-left-color:${colorSolido(eq.color)}">
     <span class="min">${minAbsGol(g)}'</span>${icono} ${palabraGol}${quien}${tipo}${asis}</div>`;
 }
 function render(){
@@ -1291,8 +1298,8 @@ function render(){
   $('nomB-c').textContent = estado.config.b.nombre;
   $('numA').textContent = estado.marcador.a || 0;
   $('numB').textContent = estado.marcador.b || 0;
-  $('numA').style.borderLeftColor = estado.config.a.color;
-  $('numB').style.borderLeftColor = estado.config.b.color;
+  $('numA').style.borderLeftColor = colorSolido(estado.config.a.color);
+  $('numB').style.borderLeftColor = colorSolido(estado.config.b.color);
   $('logoA-c').innerHTML = logoHTML('a');
   $('logoB-c').innerHTML = logoHTML('b');
   $('golA').style.background = estado.config.a.color;
@@ -1322,7 +1329,7 @@ function renderFinal(){
   $('final-res').textContent = (estado.marcador.a||0) + ' – ' + (estado.marcador.b||0);
   $('final-res').style.color = '#fff';
   $('final-equipos').innerHTML =
-    `<span style="color:${a.color}">●</span> ${a.nombre} &nbsp;·&nbsp; <span style="color:${b.color}">●</span> ${b.nombre}`;
+    `<span style="color:${colorSolido(a.color)}">●</span> ${a.nombre} &nbsp;·&nbsp; <span style="color:${colorSolido(b.color)}">●</span> ${b.nombre}`;
   const gl = listaGoles();
   $('final-goles').innerHTML = gl.length ? gl.map(golHTML).join('')
     : '<p class="nota">Sin goles.</p>';
