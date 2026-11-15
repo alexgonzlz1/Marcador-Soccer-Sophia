@@ -390,11 +390,17 @@ const COLORES = ['#1E5AA8','#D2202F','#1B7A3D','#F2B705','#FFFFFF','#E8721C','#7
 /* Un color puede ser un círculo partido en dos en diagonal (linear-gradient
    135deg) para botones y fondos; donde se necesita un color sólido (bordes,
    puntos, sombras, lienzo) se usa la primera mitad del degradado. */
+/* FKK: solo los dos colores del uniforme — Home (local, celeste+blanco) y
+   Visitante (negro+azul rey con línea blanca). El Equipo B usa COLORES. */
+const COLORES_FKK = [
+  'linear-gradient(135deg,#4593CA 50%,#FFFFFF 50%)',
+  'linear-gradient(135deg,#555555 calc(50% - 2px),#FFFFFF calc(50% - 2px),#FFFFFF calc(50% + 2px),#4169E1 calc(50% + 2px))'
+];
 function colorSolido(c){
   const m = String(c || '').match(/linear-gradient\([^,]+,\s*(#[0-9a-fA-F]{3,8})/);
   return m ? m[1] : c;
 }
-let colorA = COLORES[0], colorB = COLORES[1], logoAData = '', logoBData = '';
+let colorA = COLORES_FKK[0], colorB = COLORES[1], logoAData = '', logoBData = '';
 let minSel = 35, perSel = 2;
 /* Caché de las últimas listas de jugadoras (por si un partido se crea sin ellas) */
 let rosterCache = { a: [], b: [] };
@@ -415,7 +421,7 @@ function cargarFavFKK(){
   const f = favFKK(); if(!f) return;
   if(f.nombre && !$('nombreA').value) $('nombreA').value = f.nombre;
   if(f.roster && f.roster.length && !$('rosterA').value) $('rosterA').value = f.roster.join('\n');
-  if(f.color){ colorA = f.color; armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v); }
+  if(f.color){ colorA = COLORES_FKK.includes(f.color) ? f.color : COLORES_FKK[0]; armarSwatches('swA', v=>colorA=v, COLORES_FKK); armarSwatches('swB', v=>colorB=v); }
   if(f.logo && !logoAData){ logoAData = f.logo; $('logoA-prev').src = f.logo; $('logoA-prev').style.display = 'block'; }
 }
 /* Recuerda los ajustes del partido (minutos y periodos) para la próxima vez */
@@ -550,18 +556,20 @@ function procesarLogo(file){
 }
 
 /* ================= CREAR PARTIDO ================= */
-function armarSwatches(contId, set){
+function armarSwatches(contId, set, paleta){
+  const lista = paleta || COLORES;
   const cont = $(contId); cont.innerHTML = '';
-  COLORES.forEach(c=>{
+  lista.forEach(c=>{
     const b = document.createElement('button');
     b.className = 'sw' + (((contId==='swA'?colorA:colorB)===c)?' sel':'');
     b.style.background = c; b.type = 'button';
-    b.onclick = ()=>{ set(c); armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v); };
+    b.onclick = ()=>{ set(c); armarSwatches('swA', v=>colorA=v, COLORES_FKK); armarSwatches('swB', v=>colorB=v); };
     cont.appendChild(b);
   });
+  if(contId === 'swA') return; /* FKK: solo Home y Visitante, sin rueda de color */
   const col = document.createElement('input');
   col.type = 'color'; col.className = 'rueda'; col.title = 'Otro color';
-  col.oninput = ()=>{ set(col.value); armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v); };
+  col.oninput = ()=>{ set(col.value); armarSwatches('swA', v=>colorA=v, COLORES_FKK); armarSwatches('swB', v=>colorB=v); };
   cont.appendChild(col);
 }
 function rosterDe(id){ return $(id).value.split('\n').map(s=>s.trim()).filter(Boolean); }
@@ -1477,7 +1485,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
 function iniciarApp(){
   // swatches y logos del formulario crear
-  armarSwatches('swA', v=>colorA=v); armarSwatches('swB', v=>colorB=v);
+  armarSwatches('swA', v=>colorA=v, COLORES_FKK); armarSwatches('swB', v=>colorB=v);
   $('logoA').onchange = e=>procesarLogo(e.target.files[0]).then(d=>{ logoAData=d;
     if(d){ $('logoA-prev').src=d; $('logoA-prev').style.display='block'; } }).catch(err=>mostrarError(err.message));
   $('logoB').onchange = e=>procesarLogo(e.target.files[0]).then(d=>{ logoBData=d;
